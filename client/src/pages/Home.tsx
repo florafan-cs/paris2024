@@ -1,629 +1,952 @@
-/* ==========================================================
-   DESIGN: "Luminous River"
-   Deep midnight navy + Olympic gold
-   Cormorant Garamond (display) + DM Sans (body)
-   Full-bleed imagery, theatrical act structure, scroll animations
-   ========================================================== */
+import { useEffect, useRef, useState } from "react";
 
-import { useEffect, useRef } from "react";
+// ─── Image URLs (all uploaded to CDN) ───────────────────────────────────────
+const IMG = {
+  hero:          "/manus-storage/photo_opening_hero_ff7c075f.jpg",
+  seinePanorama: "/manus-storage/photo_seine_aerial_20ead94c.jpg",
+  seineBoats:    "/manus-storage/photo_seine_boats_2777e530.jpg",
+  seineBoats2:   "/manus-storage/photo_seine_boats2_0bfd0c6b.jpg",
+  performers:    "/manus-storage/photo_performers_bc77fb9a.jpg",
+  gojira:        "/manus-storage/photo_gojira_b22665cb.jpg",
+  marieAnt:      "/manus-storage/photo_marie_antoinette_fec79f4b.jpg",
+  cauldron:      "/manus-storage/photo_cauldron_170fd456.jpg",
+  cauldron2:     "/manus-storage/photo_cauldron2_21b8b3cd.jpg",
+  celineEiffel:  "/manus-storage/photo_celine_eiffel_28f6ff18.jpg",
+  celine2:       "/manus-storage/photo_celine2_efdef2df.jpg",
+  tomCruise:     "/manus-storage/photo_tom_cruise_98bea5d0.jpg",
+  billie:        "/manus-storage/photo_closing_billie_d81c7d84.jpg",
+  snoop:         "/manus-storage/photo_closing_snoop_900f33b7.jpg",
+  phryge:        "/manus-storage/photo_phryge_official_d426d1c0.jpg",
+  phryge2:       "/manus-storage/photo_phryge2_d70c1d39.jpg",
+  ceremony:      "/manus-storage/photo_ceremony_moments_cc0e3a67.jpg",
+  ladyGaga:      "/manus-storage/photo_lady_gaga_celine_b4e0f847.jpg",
+};
 
 // ─── Scroll animation hook ───────────────────────────────────────────────────
 function useScrollReveal() {
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add("visible");
+        entries.forEach((e) => {
+          if (e.isIntersecting) {
+            e.target.classList.add("visible");
+            // for stagger children
+            e.target.querySelectorAll(":scope > *").forEach((child) => {
+              child.classList.add("visible");
+            });
           }
         });
       },
-      { threshold: 0.12 }
+      { threshold: 0.1 }
     );
-    document.querySelectorAll(".fade-up, .stagger-children").forEach((el) => {
+    document.querySelectorAll(".fade-up, .fade-in, .stagger-children").forEach((el) => {
       observer.observe(el);
     });
     return () => observer.disconnect();
   }, []);
 }
 
-// ─── Particle canvas ─────────────────────────────────────────────────────────
-function ParticleCanvas() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    let animId: number;
-    const resize = () => {
-      canvas.width = canvas.offsetWidth;
-      canvas.height = canvas.offsetHeight;
-    };
-    resize();
-    window.addEventListener("resize", resize);
-    const particles: { x: number; y: number; r: number; vx: number; vy: number; alpha: number; da: number }[] = [];
-    for (let i = 0; i < 90; i++) {
-      particles.push({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
-        r: Math.random() * 1.5 + 0.3,
-        vx: (Math.random() - 0.5) * 0.18,
-        vy: -Math.random() * 0.25 - 0.05,
-        alpha: Math.random() * 0.7 + 0.2,
-        da: (Math.random() - 0.5) * 0.005,
-      });
-    }
-    const draw = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      particles.forEach((p) => {
-        p.x += p.vx;
-        p.y += p.vy;
-        p.alpha += p.da;
-        if (p.alpha <= 0.1 || p.alpha >= 0.9) p.da *= -1;
-        if (p.y < -5) { p.y = canvas.height + 5; p.x = Math.random() * canvas.width; }
-        if (p.x < -5) p.x = canvas.width + 5;
-        if (p.x > canvas.width + 5) p.x = -5;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(240, 192, 64, ${p.alpha})`;
-        ctx.fill();
-      });
-      animId = requestAnimationFrame(draw);
-    };
-    draw();
-    return () => { cancelAnimationFrame(animId); window.removeEventListener("resize", resize); };
-  }, []);
-  return <canvas ref={canvasRef} id="particle-canvas" className="absolute inset-0 w-full h-full pointer-events-none" />;
-}
+// ─── The 12 Acts data ────────────────────────────────────────────────────────
+const ACTS = [
+  {
+    num: "I",
+    title: "Enchanté",
+    location: "Pont d'Iéna",
+    color: "#c8973a",
+    summary: "Lady Gaga opens the Games with a tribute to French cabaret and the vedette tradition.",
+    detail: "Dressed in a black feathered costume, Lady Gaga performed Zizi Jeanmaire's 1961 hit 'Mon truc en plumes' — a tribute to the French vedette tradition and the golden age of Parisian cabaret. Moulin Rouge dancers then performed the iconic can-can from Offenbach's Orpheus in the Underworld, setting the tone for a ceremony rooted in French cultural heritage.",
+    figures: ["Lady Gaga", "Zizi Jeanmaire", "Jacques Offenbach"],
+  },
+  {
+    num: "II",
+    title: "Synchronicité",
+    location: "Pont de Bir-Hakeim",
+    color: "#1a2d5a",
+    summary: "A dance tribute to the artisans rebuilding Notre-Dame Cathedral.",
+    detail: "Dancers performed to a soundscape built from the hammering and sawing of Notre-Dame's reconstruction. The 2019 fire that nearly destroyed the cathedral had become a symbol of French resilience; this act honored the thousands of craftspeople — carpenters, stonemasons, glassworkers — who labored to restore the 850-year-old Gothic masterpiece.",
+    figures: ["Notre-Dame Cathedral", "French artisans"],
+  },
+  {
+    num: "III",
+    title: "Liberté",
+    location: "Conciergerie",
+    color: "#ED2939",
+    summary: "Gojira performs the French Revolution anthem at the prison where Marie Antoinette was held.",
+    detail: "French metal band Gojira, joined by opera singer Marina Viotti, performed a thunderous rendition of 'Ah! Ca Ira' — the revolutionary anthem — from the Conciergerie, the very prison where Marie Antoinette awaited execution. A performer portraying the queen's severed, singing head emerged from a window, surrounded by explosions of blood-red streamers. The act referenced the French concept of laicite — the separation of church and state — and sparked worldwide controversy.",
+    figures: ["Gojira", "Marina Viotti", "Marie Antoinette", "Joe Duplantier"],
+  },
+  {
+    num: "IV",
+    title: "Égalité",
+    location: "Pont au Change",
+    color: "#0d1a3a",
+    summary: "Aya Nakamura performs with the Republican Guard on the Pont des Arts.",
+    detail: "Aya Nakamura — the most-streamed French-language artist in the world — performed her hits 'Djadja' and 'Pookie' alongside the Republican Guard's brass orchestra on the Pont des Arts. The choice was deliberately provocative: Nakamura, a French-Malian singer, had faced racist attacks from far-right groups who objected to her inclusion. Her performance became one of the most celebrated moments of the entire ceremony.",
+    figures: ["Aya Nakamura", "Republican Guard"],
+  },
+  {
+    num: "V",
+    title: "Fraternité",
+    location: "Pont du Carrousel",
+    color: "#c8973a",
+    summary: "The Mona Lisa is 'stolen' by the Minions; giant Louvre masterpieces line the Seine.",
+    detail: "In a playful sequence, the Minions (from French animation studio Illumination) appeared to steal the Mona Lisa — a reference to the real 1911 theft by Vincenzo Peruggia. Giant reproductions of Louvre masterpieces lined the riverbanks, including Delacroix's Liberty Leading the People, Gericault's Raft of the Medusa, and Marie-Guillemine Benoist's Portrait of Madeleine. Tributes were paid to the Lumiere brothers and Georges Melies, whose 1902 film Le Voyage dans la Lune pioneered cinema.",
+    figures: ["Leonardo da Vinci", "Eugene Delacroix", "Theodore Gericault", "Marie-Guillemine Benoist", "Georges Melies", "Lumiere brothers"],
+  },
+  {
+    num: "VI",
+    title: "Sororité",
+    location: "Pont des Arts",
+    color: "#1a2d5a",
+    summary: "Ten golden female figures emerge from the Louvre in a tribute to French womanhood.",
+    detail: "Ten enormous golden female figures, inspired by paintings in the Louvre's collection, emerged from the museum's facade and processed along the Seine. The sequence celebrated French women across history — from mythological goddesses to revolutionary heroines — and referenced the 2024 Games' commitment to full gender parity among athletes.",
+    figures: ["Marie-Guillemine Benoist", "Georges de La Tour"],
+  },
+  {
+    num: "VII",
+    title: "Festivité",
+    location: "Pont Neuf",
+    color: "#ED2939",
+    summary: "A tableau vivant referencing a 17th-century Dutch painting sparks the 'Last Supper' controversy.",
+    detail: "A long banquet table was set on a stage, populated by drag performers and a figure representing Dionysus. The scene was inspired by Jan van Bijlert's 1640 painting 'The Feast of the Gods' — though many viewers interpreted it as a parody of Leonardo da Vinci's 'The Last Supper.' Artistic director Thomas Jolly denied any Christian reference, stating the tableau celebrated 'the gods of Olympus.' The controversy drew condemnation from religious groups and praise from LGBTQ+ advocates worldwide.",
+    figures: ["Jan van Bijlert", "Thomas Jolly", "Dionysus"],
+  },
+  {
+    num: "VIII",
+    title: "Solidarité",
+    location: "Pont de la Concorde",
+    color: "#0d1a3a",
+    summary: "A tribute to Paralympic athletes and the spirit of inclusion.",
+    detail: "Dancers with and without disabilities performed together in a sequence celebrating the Paralympic movement. The Phryge Paralympic mascot — wearing a running prosthesis — appeared prominently, reinforcing the Games' message of radical inclusion. The sequence was choreographed by disabled artists and drew a standing ovation from the crowd.",
+    figures: ["Phryge Paralympic mascot"],
+  },
+  {
+    num: "IX",
+    title: "Naturalité",
+    location: "Pont de l'Alma",
+    color: "#c8973a",
+    summary: "A tribute to the natural world and France's ecological heritage.",
+    detail: "Performers in elaborate costumes representing France's diverse ecosystems — forests, mountains, coastlines — danced across the bridges. The sequence was a nod to the Olympic movement's growing commitment to environmental sustainability, and to France's tradition of landscape painting from Corot to Monet.",
+    figures: ["Jean-Baptiste-Camille Corot", "Claude Monet"],
+  },
+  {
+    num: "X",
+    title: "Universalité",
+    location: "Pont des Invalides",
+    color: "#1a2d5a",
+    summary: "Soprano Axelle Saint-Cirel sings La Marseillaise from the Grand Palais roof.",
+    detail: "Soprano Axelle Saint-Cirel, draped in the Tricolore and embodying the Black personification of Marianne — the allegorical figure of the French Republic — sang a soaring rendition of La Marseillaise from the roof of the Grand Palais. The choice of a young Black woman to embody France's national symbol was widely praised as a statement about modern French identity.",
+    figures: ["Axelle Saint-Cirel", "Marianne"],
+  },
+  {
+    num: "XI",
+    title: "Élévation",
+    location: "Pont Alexandre III",
+    color: "#ED2939",
+    summary: "The Olympic flame ascends in a hot-air balloon honoring the Montgolfier brothers.",
+    detail: "The Olympic cauldron — designed as a hot-air balloon — was lit by French Olympic legends Marie-Jose Perec (triple gold medalist, Atlanta 1996) and Teddy Riner (three-time Olympic judo champion). The balloon then ascended over Paris, referencing the Montgolfier brothers' first manned flight in 1783. Paris 2024 organizing committee president Tony Estanguet described the choice of a man and a woman as 'an obvious choice for the first parity Games.'",
+    figures: ["Marie-Jose Perec", "Teddy Riner", "Montgolfier brothers", "Tony Estanguet"],
+  },
+  {
+    num: "XII",
+    title: "Festivité",
+    location: "Trocadero / Eiffel Tower",
+    color: "#0d1a3a",
+    summary: "Celine Dion closes the ceremony with Piaf's 'L'Hymne a l'amour' from the Eiffel Tower.",
+    detail: "In the most emotionally charged moment of the evening, Celine Dion — making her first public performance since her 2022 diagnosis with stiff-person syndrome — sang Edith Piaf's 'L'Hymne a l'amour' from the first level of the Eiffel Tower, as the cauldron balloon glowed in the distance. Dion later said: 'I'm honored to have performed tonight, for the Paris 2024 Opening Ceremony, and so full of joy to be back in one of my very favorite cities.'",
+    figures: ["Celine Dion", "Edith Piaf"],
+  },
+];
 
-// ─── Navigation ──────────────────────────────────────────────────────────────
-// --- Course Header Banner ---
-function CourseHeader() {
-  return (
-    <div style={{
-      position: "fixed",
-      top: 0,
-      left: 0,
-      right: 0,
-      zIndex: 100,
-      background: "rgba(10, 14, 26, 0.97)",
-      borderBottom: "1px solid rgba(240, 192, 64, 0.25)",
-      padding: "8px 32px",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      backdropFilter: "blur(12px)",
-    }}>
-      <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-        <span style={{
-          fontFamily: "var(--font-body)",
-          fontSize: "0.7rem",
-          fontWeight: 600,
-          letterSpacing: "0.18em",
-          textTransform: "uppercase",
-          color: "var(--gold)",
-          opacity: 0.9,
-        }}>
-          202601_MDFL_201R_01
-        </span>
-        <span style={{ width: "1px", height: "14px", background: "rgba(240,192,64,0.3)", display: "inline-block" }} />
-        <span style={{
-          fontFamily: "var(--font-display)",
-          fontSize: "0.9rem",
-          fontWeight: 600,
-          color: "#fff",
-          letterSpacing: "0.04em",
-        }}>
-          Taste of France
-        </span>
-      </div>
-      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-        <span style={{
-          fontFamily: "var(--font-body)",
-          fontSize: "0.68rem",
-          fontWeight: 400,
-          color: "rgba(255,255,255,0.45)",
-          letterSpacing: "0.1em",
-          textTransform: "uppercase",
-        }}>
-          Author:
-        </span>
-        <span style={{
-          fontFamily: "var(--font-display)",
-          fontSize: "0.88rem",
-          fontWeight: 600,
-          color: "rgba(255,255,255,0.85)",
-          letterSpacing: "0.04em",
-          fontStyle: "italic",
-        }}>
-          Xinyue Fan
-        </span>
-      </div>
-    </div>
-  );
-}
+// ─── Medal data ──────────────────────────────────────────────────────────────
+const MEDALS = [
+  { country: "USA", flag: "🇺🇸", gold: 40, silver: 44, bronze: 42, total: 126 },
+  { country: "China", flag: "🇨🇳", gold: 40, silver: 27, bronze: 24, total: 91 },
+  { country: "Great Britain", flag: "🇬🇧", gold: 20, silver: 12, bronze: 13, total: 45 },
+  { country: "Australia", flag: "🇦🇺", gold: 18, silver: 19, bronze: 16, total: 53 },
+  { country: "France", flag: "🇫🇷", gold: 16, silver: 26, bronze: 22, total: 64 },
+  { country: "Netherlands", flag: "🇳🇱", gold: 15, silver: 7, bronze: 12, total: 34 },
+  { country: "South Korea", flag: "🇰🇷", gold: 13, silver: 9, bronze: 10, total: 32 },
+  { country: "Japan", flag: "🇯🇵", gold: 20, silver: 12, bronze: 13, total: 45 },
+];
 
+// ─── Journalist interviews / quotes ─────────────────────────────────────────
+const INTERVIEWS = [
+  {
+    speaker: "Joe Duplantier",
+    role: "Frontman, Gojira",
+    source: "Rolling Stone, July 29, 2024",
+    quote: "It's none of that. It's French history. It's French charm, you know — beheaded people, red wine, and blood all over the place. It's romantic, it's normal. There's nothing satanic. France is a country that made a separation between the state and religion during the revolution. We call it laicite. It's all about history and facts.",
+    context: "Responding to accusations that Gojira's Marie Antoinette performance was 'satanic'",
+    color: "#ED2939",
+  },
+  {
+    speaker: "Thomas Jolly",
+    role: "Artistic Director, Paris 2024 Ceremonies",
+    source: "Vogue, May 30, 2024",
+    quote: "The river's namesake Gallo-Roman goddess was my muse. The Seine is not just a river — it is the spine of Paris, the artery through which French history flows. I wanted the world to experience Paris not as a postcard, but as a living, breathing civilization.",
+    context: "On the decision to stage the ceremony on the Seine",
+    color: "#0d1a3a",
+  },
+  {
+    speaker: "Thomas Jolly",
+    role: "Artistic Director, Paris 2024 Ceremonies",
+    source: "Press Conference, July 28, 2024",
+    quote: "There is Dionysus who arrives on this table. He is there to celebrate the joy of being together. I wanted to celebrate community, tolerance, diversity. There was never any intention to mock or disrespect any religion.",
+    context: "Responding to the 'Last Supper' controversy",
+    color: "#0d1a3a",
+  },
+  {
+    speaker: "Celine Dion",
+    role: "Singer",
+    source: "Official Statement, July 26, 2024",
+    quote: "I'm honored to have performed tonight, for the Paris 2024 Opening Ceremony, and so full of joy to be back in one of my very favorite cities! When love is in your heart, anything is possible.",
+    context: "After her first public performance since her stiff-person syndrome diagnosis",
+    color: "#c8973a",
+  },
+  {
+    speaker: "Patrick Boucheron",
+    role: "Historian, Creative Consultant",
+    source: "Press Conference, July 27, 2024",
+    quote: "There is one message: yes, despite everything, we can still live together. The ceremony was not a museum piece — it was a living argument for coexistence, made in the most beautiful city in the world.",
+    context: "On the ceremony's overarching meaning",
+    color: "#1a2d5a",
+  },
+  {
+    speaker: "Tony Estanguet",
+    role: "President, Paris 2024 Organizing Committee",
+    source: "Reuters, July 26, 2024",
+    quote: "A man and a woman for the first parity Games was an obvious choice. I waited this morning to tell them. It was a secret kept until the very last moment.",
+    context: "On the choice of Marie-Jose Perec and Teddy Riner to light the cauldron",
+    color: "#c8973a",
+  },
+  {
+    speaker: "Matthew Gin",
+    role: "Assistant Professor of Architectural History, UNC Charlotte",
+    source: "Journal18, September 3, 2024",
+    quote: "The artifice was revealed — a reminder that pageants do not magically appear but rather are willed into existence by people who work largely unseen and unacknowledged. The monarchy is long gone, but its ceremonial trappings continue to be repurposed and reimaged to new ends.",
+    context: "Observing workers dismantling the ceremony set the morning after",
+    color: "#1a2d5a",
+  },
+  {
+    speaker: "Emily Carter",
+    role: "Music Journalist, Kerrang!",
+    source: "Kerrang!, July 30, 2024",
+    quote: "Gojira became the first heavy metal band to perform at an Olympic Games opening ceremony — and they did so with a performance that was simultaneously historically grounded, visually spectacular, and genuinely dangerous-feeling. It was a watershed moment for metal's cultural legitimacy.",
+    context: "Reviewing Gojira's historic Olympic performance",
+    color: "#ED2939",
+  },
+];
+
+// ─── References ──────────────────────────────────────────────────────────────
+const REFERENCES = [
+  {
+    num: 1,
+    authors: "Wikipedia contributors",
+    title: "2024 Summer Olympics opening ceremony",
+    outlet: "Wikipedia",
+    date: "2024",
+    url: "https://en.wikipedia.org/wiki/2024_Summer_Olympics_opening_ceremony",
+  },
+  {
+    num: 2,
+    authors: "Wikipedia contributors",
+    title: "2024 Summer Olympics closing ceremony",
+    outlet: "Wikipedia",
+    date: "2024",
+    url: "https://en.wikipedia.org/wiki/2024_Summer_Olympics_closing_ceremony",
+  },
+  {
+    num: 3,
+    authors: "Wikipedia contributors",
+    title: "Phryges (mascots)",
+    outlet: "Wikipedia",
+    date: "2024",
+    url: "https://en.wikipedia.org/wiki/Phryges",
+  },
+  {
+    num: 4,
+    authors: "Carter, Emily",
+    title: "Gojira respond to the 'satanic' comments made about their Olympics opening ceremony performance",
+    outlet: "Kerrang!",
+    date: "July 30, 2024",
+    url: "https://www.kerrang.com/gojira-respond-to-the-satanic-comments-made-about-their-olympics-opening-ceremony-performance",
+  },
+  {
+    num: 5,
+    authors: "Gin, Matthew",
+    title: "Liberte, Egalite, Festivite: The Opening Ceremony of the 2024 Paris Olympics",
+    outlet: "Journal18: A Journal of Eighteenth-Century Art and Culture",
+    date: "September 3, 2024",
+    url: "https://www.journal18.org/nq/liberte-egalite-festivite-the-opening-ceremony-of-the-2024-paris-olympics-by-matthew-gin/",
+  },
+  {
+    num: 6,
+    authors: "Wood, Gaby",
+    title: "Thomas Jolly is Masterminding the Most Complex Olympics Opening Ceremony of All Time",
+    outlet: "Vogue",
+    date: "May 30, 2024",
+    url: "https://www.vogue.com/article/thomas-jolly-profile-paris-olympics-opening-ceremony",
+  },
+  {
+    num: 7,
+    authors: "Adamson, Thomas",
+    title: "Drag queens shine at Olympics opening, but 'Last Supper' tableau draws criticism",
+    outlet: "Associated Press",
+    date: "July 27, 2024",
+    url: "https://apnews.com/article/olympics-2024-drag-queens-opening-ceremony-c635aa276be1147e4643231bdbe5478e",
+  },
+  {
+    num: 8,
+    authors: "Zhuang, Yan",
+    title: "An Olympics Scene Draws Scorn. Did It Really Parody 'The Last Supper'?",
+    outlet: "The New York Times",
+    date: "July 28, 2024",
+    url: "https://www.nytimes.com/2024/07/28/sports/olympics-opening-ceremony-last-supper-paris.html",
+  },
+  {
+    num: 9,
+    authors: "Porter, Catherine",
+    title: "Olympic Ceremony Put a Changing France on Full Display",
+    outlet: "The New York Times",
+    date: "July 29, 2024",
+    url: "https://www.nytimes.com/2024/07/29/world/olympics/olympic-ceremony-france-singer-aya-nakamura.html",
+  },
+  {
+    num: 10,
+    authors: "Chemin, Ariane and Nouchi, Franck",
+    title: "Paris Olympics opening ceremony's writers: 'If it's only there to produce ephemeral glitz, what's the point?'",
+    outlet: "Le Monde",
+    date: "July 16, 2024",
+    url: "https://www.lemonde.fr/en/sports/article/2024/07/16/paris-olympics-opening-ceremony-s-writers-if-it-s-only-there-to-produce-ephemeral-glitz-what-s-the-point_6686013_9.html",
+  },
+  {
+    num: 11,
+    authors: "The Conversation",
+    title: "Phryge, the friendly Paris Olympics 2024 mascot and the real meaning of red liberty caps",
+    outlet: "The Conversation",
+    date: "2024",
+    url: "https://theconversation.com/phryge-the-friendly-paris-olympics-2024-mascot-and-the-real-meaning-of-red-liberty-caps-236212",
+  },
+  {
+    num: 12,
+    authors: "Sortiraparis",
+    title: "Closing Ceremony Paris 2024: Billie Eilish, Snoop Dogg and the Red Hot Chili Peppers",
+    outlet: "Sortiraparis",
+    date: "August 11, 2024",
+    url: "https://www.sortiraparis.com/en/news/olympic-games-paris-2024/articles/318447-closing-ceremony-jo-paris-2024-billie-eilish-snoop-dogg-and-the-red-hot-chili-peppers",
+  },
+  {
+    num: 13,
+    authors: "Reuters",
+    title: "French gold medallists Perec and Riner light Olympic cauldron",
+    outlet: "Reuters",
+    date: "July 26, 2024",
+    url: "https://www.reuters.com/sports/olympics/french-gold-medallists-perec-riner-light-olympic-cauldron-2024-07-26/",
+  },
+  {
+    num: 14,
+    authors: "Hollywood Reporter",
+    title: "Billie Eilish, H.E.R., Snoop Dogg Play 2024 Olympics Closing Ceremony",
+    outlet: "The Hollywood Reporter",
+    date: "August 11, 2024",
+    url: "https://www.hollywoodreporter.com/music/music-news/billie-eilish-her-snoop-dogg-2024-olympics-closing-ceremony-1235971950/",
+  },
+];
+
+// ─── Nav ─────────────────────────────────────────────────────────────────────
 function Nav() {
-  const scrollTo = (id: string) => {
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
-  };
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 60);
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  const links = [
+    { label: "Opening", href: "#opening" },
+    { label: "The 12 Acts", href: "#acts" },
+    { label: "Closing", href: "#closing" },
+    { label: "Mascot", href: "#mascot" },
+    { label: "Interviews", href: "#interviews" },
+    { label: "Medals", href: "#medals" },
+    { label: "References", href: "#references" },
+  ];
+
   return (
-    <nav className="fixed left-0 right-0 z-50 flex items-center justify-between px-8 py-4" style={{ top: "38px", background: "linear-gradient(to bottom, rgba(10,14,26,0.95) 0%, rgba(10,14,26,0) 100%)" }}>
-      <div className="flex items-center gap-2">
-        <div className="w-6 h-6 rounded-full border border-[#f0c040] flex items-center justify-center">
-          <div className="w-2 h-2 rounded-full bg-[#f0c040]" />
-        </div>
-        <span style={{ fontFamily: "var(--font-display)", fontSize: "1rem", fontWeight: 600, color: "#f0c040", letterSpacing: "0.05em" }}>
-          PARIS 2024
+    <nav
+      style={{
+        position: "fixed",
+        top: "38px",
+        left: 0,
+        right: 0,
+        zIndex: 100,
+        background: scrolled ? "rgba(255,255,255,0.97)" : "transparent",
+        borderBottom: scrolled ? "1px solid #e8e4dc" : "none",
+        backdropFilter: scrolled ? "blur(12px)" : "none",
+        transition: "all 0.3s ease",
+        padding: "0 2rem",
+      }}
+    >
+      <div style={{ maxWidth: 1320, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: 60 }}>
+        <span style={{ fontFamily: "var(--font-display)", fontSize: "1.1rem", fontWeight: 700, color: "var(--navy)", letterSpacing: "0.02em" }}>
+          Paris 2024
         </span>
-      </div>
-      <div className="hidden md:flex items-center gap-8">
-        {[
-          { label: "Opening", id: "opening" },
-          { label: "The Acts", id: "acts" },
-          { label: "Closing", id: "closing" },
-          { label: "Mascot", id: "mascot" },
-          { label: "Sources", id: "references" },
-        ].map((item) => (
-          <button key={item.id} onClick={() => scrollTo(item.id)}
-            className="gold-underline text-white/70 hover:text-white transition-colors"
-            style={{ fontFamily: "var(--font-body)", fontSize: "0.78rem", fontWeight: 500, letterSpacing: "0.12em", textTransform: "uppercase", background: "none", border: "none" }}>
-            {item.label}
-          </button>
-        ))}
+        <div style={{ display: "flex", gap: "2rem", alignItems: "center" }}>
+          {links.map((l) => (
+            <a
+              key={l.href}
+              href={l.href}
+              className="nav-link"
+              style={{
+                fontFamily: "var(--font-body)",
+                fontSize: "0.78rem",
+                fontWeight: 500,
+                letterSpacing: "0.05em",
+                color: scrolled ? "var(--text-dark)" : "#fff",
+                textDecoration: "none",
+                textTransform: "uppercase",
+              }}
+            >
+              {l.label}
+            </a>
+          ))}
+        </div>
       </div>
     </nav>
   );
 }
 
-// ─── Hero Section ─────────────────────────────────────────────────────────────
+// ─── Course Header Banner ────────────────────────────────────────────────────
+function CourseHeader() {
+  return (
+    <div
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 200,
+        background: "var(--navy)",
+        height: "38px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: "2rem",
+      }}
+    >
+      <span style={{ fontFamily: "var(--font-body)", fontSize: "0.7rem", fontWeight: 600, letterSpacing: "0.15em", color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }}>
+        202601_MDFL_201R_01
+      </span>
+      <span style={{ width: 1, height: 14, background: "rgba(255,255,255,0.2)" }} />
+      <span style={{ fontFamily: "var(--font-display)", fontSize: "0.85rem", fontWeight: 600, color: "var(--gold-light)", fontStyle: "italic", letterSpacing: "0.05em" }}>
+        Taste of France
+      </span>
+      <span style={{ width: 1, height: 14, background: "rgba(255,255,255,0.2)" }} />
+      <span style={{ fontFamily: "var(--font-body)", fontSize: "0.7rem", fontWeight: 400, color: "rgba(255,255,255,0.7)", letterSpacing: "0.1em" }}>
+        Xinyue Fan
+      </span>
+    </div>
+  );
+}
+
+// ─── Hero ────────────────────────────────────────────────────────────────────
 function Hero() {
   return (
-    <section className="relative min-h-screen flex flex-col justify-end overflow-hidden">
-      <div className="absolute inset-0">
-        <img
-          src="https://d2xsxph8kpxj0f.cloudfront.net/310519663375659687/adZ8ed6MMkFAwXrUccjYXT/paris_hero-J2tyGhzJwtBZrowdSpAnap.webp"
-          alt="Paris at night with Olympic rings on the Eiffel Tower"
-          className="w-full h-full object-cover"
-          style={{ filter: "brightness(0.55)" }}
-        />
-        <div className="absolute inset-0" style={{ background: "linear-gradient(to top, #0a0e1a 0%, rgba(10,14,26,0.3) 50%, rgba(10,14,26,0.1) 100%)" }} />
-      </div>
-      <ParticleCanvas />
-      <div className="relative z-10 container pb-24 pt-48">
-        <div className="max-w-3xl">
-          <p className="section-label mb-6">July 26 – August 11, 2024</p>
-          <h1 className="display-heading mb-6" style={{ fontSize: "clamp(2.8rem, 7vw, 5.5rem)", lineHeight: 1.05 }}>
-            Paris 2024 Olympics<br />
-            <span className="text-gold italic">A Cultural &amp; Artistic</span><br />
-            Analysis
-          </h1>
-          <div className="gold-rule mb-6" />
-          <p className="text-white/70 max-w-xl" style={{ fontFamily: "var(--font-body)", fontSize: "1.05rem", lineHeight: 1.75, fontWeight: 300 }}>
-            The 2024 Summer Olympics in Paris marked a historic departure from tradition — transforming the River Seine into the world's grandest stage, weaving French history, art, and culture into an unforgettable spectacle.
-          </p>
-          <div className="flex gap-6 mt-10">
-            <button onClick={() => document.getElementById("opening")?.scrollIntoView({ behavior: "smooth" })}
-              className="px-7 py-3 text-sm font-semibold tracking-widest uppercase transition-all"
-              style={{ background: "var(--gold)", color: "#0a0e1a", fontFamily: "var(--font-body)", letterSpacing: "0.15em", borderRadius: "2px" }}>
-              Explore
-            </button>
-            <button onClick={() => document.getElementById("acts")?.scrollIntoView({ behavior: "smooth" })}
-              className="px-7 py-3 text-sm font-semibold tracking-widest uppercase transition-all text-white/80 hover:text-white"
-              style={{ border: "1px solid rgba(240,192,64,0.4)", fontFamily: "var(--font-body)", letterSpacing: "0.15em", borderRadius: "2px", background: "transparent" }}>
-              The 12 Acts
-            </button>
-          </div>
+    <section
+      style={{
+        position: "relative",
+        height: "100vh",
+        minHeight: 640,
+        overflow: "hidden",
+        display: "flex",
+        alignItems: "flex-end",
+        paddingBottom: "6rem",
+      }}
+    >
+      <img
+        src={IMG.hero}
+        alt="Paris 2024 Olympics Opening Ceremony on the Seine"
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+      />
+      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(13,26,58,0.92) 0%, rgba(13,26,58,0.4) 50%, transparent 100%)" }} />
+      <div style={{ position: "relative", zIndex: 2, maxWidth: 1320, margin: "0 auto", padding: "0 3rem", width: "100%" }}>
+        <div className="tricolor-bar" style={{ width: 80, marginBottom: "1.5rem" }} />
+        <p className="section-label" style={{ color: "rgba(200,151,58,0.9)", marginBottom: "1rem" }}>Paris 2024 · A Cultural &amp; Artistic Analysis</p>
+        <h1 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(2.8rem, 6vw, 5.5rem)", fontWeight: 700, color: "#fff", lineHeight: 1.05, marginBottom: "1.5rem", maxWidth: 800 }}>
+          The Games That<br />Turned a City<br />Into a Stage
+        </h1>
+        <p style={{ fontFamily: "var(--font-body)", fontSize: "1.05rem", color: "rgba(255,255,255,0.75)", maxWidth: 560, lineHeight: 1.7, fontWeight: 300 }}>
+          From the banks of the Seine to the Stade de France, the Paris 2024 Olympic Games staged a sweeping meditation on French history, art, liberty, and the enduring power of human togetherness.
+        </p>
+        <div style={{ display: "flex", gap: "1.5rem", marginTop: "2.5rem", alignItems: "center" }}>
+          <span style={{ fontFamily: "var(--font-body)", fontSize: "0.75rem", color: "rgba(255,255,255,0.5)", letterSpacing: "0.1em", textTransform: "uppercase" }}>July 26 — August 11, 2024</span>
+          <span style={{ width: 1, height: 16, background: "rgba(255,255,255,0.2)" }} />
+          <span style={{ fontFamily: "var(--font-body)", fontSize: "0.75rem", color: "rgba(255,255,255,0.5)", letterSpacing: "0.1em", textTransform: "uppercase" }}>206 Nations · 10,714 Athletes</span>
         </div>
-      </div>
-      {/* Scroll indicator */}
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 z-10">
-        <span className="section-label" style={{ fontSize: "0.6rem" }}>SCROLL</span>
-        <div className="w-px h-12 bg-gradient-to-b from-[#f0c040] to-transparent" />
       </div>
     </section>
   );
 }
 
-// ─── Opening Ceremony Section ─────────────────────────────────────────────────
+// ─── Stats ───────────────────────────────────────────────────────────────────
+function Stats() {
+  const stats = [
+    { value: "206", label: "Nations Competing" },
+    { value: "10,714", label: "Athletes" },
+    { value: "329", label: "Events" },
+    { value: "32", label: "Sports" },
+    { value: "12", label: "Ceremony Acts" },
+    { value: "6km", label: "Seine Parade Route" },
+    { value: "300K", label: "Spectators on the Banks" },
+    { value: "1.5B", label: "Global TV Viewers" },
+  ];
+  return (
+    <section style={{ background: "var(--navy)", padding: "4rem 0" }}>
+      <div className="container">
+        <div className="stagger-children" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "0", borderLeft: "1px solid rgba(255,255,255,0.1)" }}>
+          {stats.map((s) => (
+            <div key={s.label} style={{ padding: "2rem 2.5rem", borderRight: "1px solid rgba(255,255,255,0.1)", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+              <div style={{ fontFamily: "var(--font-display)", fontSize: "2.8rem", fontWeight: 700, color: "var(--gold-light)", lineHeight: 1 }}>{s.value}</div>
+              <div style={{ fontFamily: "var(--font-body)", fontSize: "0.72rem", color: "rgba(255,255,255,0.5)", letterSpacing: "0.12em", textTransform: "uppercase", marginTop: "0.5rem" }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── Opening Ceremony ────────────────────────────────────────────────────────
 function OpeningSection() {
   return (
-    <section id="opening" className="py-32 relative overflow-hidden">
-      <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 70% 50%, rgba(240,192,64,0.04) 0%, transparent 70%)" }} />
+    <section id="opening" style={{ padding: "8rem 0", background: "#fff" }}>
       <div className="container">
-        {/* Header */}
-        <div className="fade-up mb-20">
-          <p className="section-label mb-3">I — The Opening</p>
-          <h2 className="display-heading mb-5" style={{ fontSize: "clamp(2.2rem, 5vw, 3.8rem)" }}>
-            A Theatrical Journey<br />
-            <span className="text-gold italic">Along the Seine</span>
+        <div className="fade-up" style={{ marginBottom: "5rem" }}>
+          <p className="section-label">I. The Opening Ceremony</p>
+          <div className="gold-rule" style={{ margin: "1rem 0 1.5rem" }} />
+          <h2 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(2.2rem, 4vw, 3.5rem)", fontWeight: 700, color: "var(--navy)", maxWidth: 700, lineHeight: 1.1 }}>
+            July 26, 2024 — The Seine as Stage
           </h2>
-          <div className="gold-rule mb-6" />
-          <p className="text-white/65 max-w-2xl" style={{ fontFamily: "var(--font-body)", fontSize: "1rem", lineHeight: 1.8, fontWeight: 300 }}>
-            Directed by Thomas Jolly, the Opening Ceremony on July 26, 2024, was the first in modern Olympic history to be held outside a stadium. The event utilized the River Seine as its main stage, with athletes parading on boats along a 6-kilometer route that culminated at the Jardins du Trocadéro. The ceremony was divided into twelve thematic acts, each exploring different facets of French identity, history, and values.
-          </p>
         </div>
 
-        {/* Image + facts */}
-        <div className="grid md:grid-cols-2 gap-12 items-center mb-24">
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4rem", alignItems: "start" }}>
           <div className="fade-up">
-            <div className="relative overflow-hidden rounded-sm" style={{ border: "1px solid rgba(240,192,64,0.2)" }}>
-              <img
-                src="https://d2xsxph8kpxj0f.cloudfront.net/310519663375659687/adZ8ed6MMkFAwXrUccjYXT/opening_ceremony-c4HvYdsx9WcwKXxrZgjFyK.webp"
-                alt="Paris 2024 Opening Ceremony on the Seine"
-                className="w-full object-cover"
-                style={{ aspectRatio: "16/9" }}
-              />
-              <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(10,14,26,0.5) 0%, transparent 60%)" }} />
-              <div className="absolute bottom-4 left-4">
-                <p className="text-white/50" style={{ fontFamily: "var(--font-body)", fontSize: "0.7rem", letterSpacing: "0.1em" }}>
-                  JULY 26, 2024 · RIVER SEINE, PARIS
-                </p>
+            <p className="body-text" style={{ marginBottom: "1.5rem" }}>
+              On the evening of July 26, 2024, Paris staged the most unconventional opening ceremony in Olympic history. For the first time, the parade of nations took place not inside a stadium but on a river — the Seine — as 6,800 athletes aboard 94 boats processed 6 kilometres from the Pont d'Austerlitz to the Trocadero, passing beneath 37 bridges and past the city's most iconic monuments.
+            </p>
+            <p className="body-text" style={{ marginBottom: "1.5rem" }}>
+              Conceived by artistic director <strong>Thomas Jolly</strong> — a 38-year-old theatre director from Normandy — the ceremony was structured into twelve thematic acts, each staged at a different point along the river. Jolly drew on the Gallo-Roman goddess of the Seine as his muse, and enlisted historian <strong>Patrick Boucheron</strong> as a creative consultant to ensure historical depth.
+            </p>
+            <p className="body-text">
+              The ceremony was watched by an estimated <strong>1.5 billion people</strong> worldwide, and by approximately 300,000 spectators on the riverbanks — a figure that itself echoed the great royal festivals staged on the Seine in 1730 and 1739, when the Bourbon monarchy used the river as a theatre of political spectacle.
+            </p>
+            <div className="quote-block" style={{ marginTop: "2rem" }}>
+              <p style={{ fontFamily: "var(--font-display)", fontSize: "1.3rem", fontStyle: "italic", color: "var(--navy)", lineHeight: 1.5 }}>
+                "The river's namesake Gallo-Roman goddess was my muse. The Seine is not just a river — it is the spine of Paris, the artery through which French history flows."
+              </p>
+              <p style={{ fontFamily: "var(--font-body)", fontSize: "0.75rem", color: "var(--text-light)", marginTop: "0.75rem", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                — Thomas Jolly, Artistic Director · Vogue, May 2024
+              </p>
+            </div>
+          </div>
+          <div className="fade-in">
+            <div className="photo-card" style={{ height: 420, marginBottom: "1rem" }}>
+              <img src={IMG.seinePanorama} alt="Aerial view of the Seine ceremony" />
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+              <div className="photo-card" style={{ height: 200 }}>
+                <img src={IMG.seineBoats} alt="Athletes on boats along the Seine" />
+              </div>
+              <div className="photo-card" style={{ height: 200 }}>
+                <img src={IMG.seineBoats2} alt="Ceremony boats on the Seine" />
               </div>
             </div>
           </div>
-          <div className="fade-up stagger-children" style={{ transitionDelay: "0.1s" }}>
+        </div>
+
+        {/* Key Figures */}
+        <div style={{ marginTop: "6rem" }}>
+          <div className="fade-up" style={{ marginBottom: "2.5rem" }}>
+            <p className="section-label">Key Figures</p>
+            <div className="gold-rule" style={{ margin: "1rem 0 1.5rem" }} />
+            <h3 style={{ fontFamily: "var(--font-display)", fontSize: "2rem", fontWeight: 700, color: "var(--navy)" }}>
+              The People Who Made History
+            </h3>
+          </div>
+          <div className="stagger-children" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "1.5rem" }}>
             {[
-              { num: "6 km", label: "Route along the Seine" },
-              { num: "160+", label: "Boats carrying delegations" },
-              { num: "6,800", label: "Athletes in the parade" },
-              { num: "3,000", label: "Total performers" },
-              { num: "12", label: "Thematic acts" },
-              { num: "~1 billion", label: "Global TV viewers" },
-            ].map((stat) => (
-              <div key={stat.num} className="flex items-center gap-5 py-4" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                <span style={{ fontFamily: "var(--font-display)", fontSize: "1.8rem", fontWeight: 700, color: "var(--gold)", minWidth: "90px" }}>{stat.num}</span>
-                <span className="text-white/60" style={{ fontFamily: "var(--font-body)", fontSize: "0.88rem", fontWeight: 400 }}>{stat.label}</span>
+              { name: "Thomas Jolly", role: "Artistic Director", desc: "Theatre director who conceived the entire ceremony as a love letter to French culture, liberty, and diversity." },
+              { name: "Lady Gaga", role: "Opening Performer", desc: "Opened the ceremony with a tribute to French cabaret, performing Zizi Jeanmaire's 'Mon truc en plumes'." },
+              { name: "Aya Nakamura", role: "Cultural Icon", desc: "The most-streamed French-language artist in the world, she performed with the Republican Guard on the Pont des Arts." },
+              { name: "Gojira", role: "Metal Pioneers", desc: "The first heavy metal band to perform at an Olympic opening ceremony, staging a revolutionary act at the Conciergerie." },
+              { name: "Axelle Saint-Cirel", role: "Soprano", desc: "Sang La Marseillaise from the Grand Palais roof, embodying Marianne — the Black personification of the French Republic." },
+              { name: "Celine Dion", role: "Closing Performer", desc: "Made her triumphant comeback after stiff-person syndrome diagnosis, singing Piaf's 'L'Hymne a l'amour' from the Eiffel Tower." },
+              { name: "Marie-Jose Perec", role: "Final Torchbearer", desc: "Triple Olympic gold medalist (Atlanta 1996) who co-lit the cauldron as a symbol of France's greatest athletic legacy." },
+              { name: "Teddy Riner", role: "Final Torchbearer", desc: "Three-time Olympic judo champion who co-lit the cauldron alongside Perec, representing gender parity." },
+            ].map((f) => (
+              <div key={f.name} className="editorial-card" style={{ padding: "1.5rem" }}>
+                <div style={{ width: 36, height: 2, background: "var(--gold)", marginBottom: "1rem" }} />
+                <h4 style={{ fontFamily: "var(--font-display)", fontSize: "1.1rem", fontWeight: 700, color: "var(--navy)", marginBottom: "0.25rem" }}>{f.name}</h4>
+                <p style={{ fontFamily: "var(--font-body)", fontSize: "0.68rem", fontWeight: 600, color: "var(--gold)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: "0.75rem" }}>{f.role}</p>
+                <p style={{ fontFamily: "var(--font-body)", fontSize: "0.85rem", color: "var(--text-mid)", lineHeight: 1.6, fontWeight: 300 }}>{f.desc}</p>
               </div>
             ))}
           </div>
         </div>
-
-        {/* Key narrative elements */}
-        <div className="fade-up mb-8">
-          <p className="section-label mb-4">Key Narrative Elements</p>
-        </div>
-        <div className="grid md:grid-cols-3 gap-6 stagger-children">
-          {[
-            {
-              title: "The Mysterious Torchbearer",
-              body: "A masked, hooded figure traversed the rooftops and landmarks of Paris throughout the ceremony. This character was an amalgamation of French cultural icons: the Phantom of the Opera, the Man in the Iron Mask, Arsène Lupin, and Arno Dorian from the video game Assassin's Creed Unity. The torchbearer's parkour movements also paid homage to the sport's French origins.",
-              icon: "🎭",
-            },
-            {
-              title: "The Olympic Cauldron",
-              body: "French Olympic champions Teddy Riner and Marie-José Pérec lit a ring of LEDs and water aerosol spray attached to a 30-meter-tall helium balloon in the Tuileries Garden — a direct tribute to the Montgolfier brothers, the French inventors who conducted the first hot-air balloon flights in 1783. It was the first Olympic cauldron to light without fossil fuels.",
-              icon: "🔥",
-            },
-            {
-              title: "Céline Dion's Return",
-              body: "Canadian singer Céline Dion closed the ceremony by singing Édith Piaf's 'Hymne à l'amour' from the first floor of the Eiffel Tower — her first public performance since December 2022, following her diagnosis with stiff-person syndrome. The moment was widely regarded as the emotional climax of the entire ceremony.",
-              icon: "🎵",
-            },
-          ].map((card) => (
-            <div key={card.title} className="glass-card act-card p-7">
-              <div className="text-3xl mb-4">{card.icon}</div>
-              <h3 className="display-heading mb-3" style={{ fontSize: "1.3rem" }}>{card.title}</h3>
-              <p className="text-white/55" style={{ fontFamily: "var(--font-body)", fontSize: "0.88rem", lineHeight: 1.75, fontWeight: 300 }}>{card.body}</p>
-            </div>
-          ))}
-        </div>
       </div>
     </section>
   );
 }
 
-// ─── The 12 Acts Section ──────────────────────────────────────────────────────
-const ACTS = [
-  {
-    roman: "I",
-    name: "Enchanté",
-    translation: "Enchantment",
-    perf: "Lady Gaga performing \"Mon truc en plumes\"; Moulin Rouge dancers performing the can-can.",
-    sig: "A tribute to French cabaret, vedette Zizi Jeanmaire, and Jacques Offenbach's Orpheus in the Underworld.",
-    color: "#f0c040",
-  },
-  {
-    roman: "II",
-    name: "Synchronicité",
-    translation: "Synchronicity",
-    perf: "Dance tribute on Île de la Cité featuring 420 performers.",
-    sig: "Honored the artisans rebuilding Notre-Dame Cathedral after the 2019 fire, and the crafting of Olympic medals at the Monnaie de Paris.",
-    color: "#7eb8f7",
-  },
-  {
-    roman: "III",
-    name: "Liberté",
-    translation: "Liberty",
-    perf: "Gojira and mezzo-soprano Marina Viotti performing \"Ah! ça ira\" at the Conciergerie; a beheaded Marie Antoinette.",
-    sig: "Referenced the French Revolution, the Reign of Terror, and the imprisonment of Marie Antoinette at the Conciergerie. The first metal band to perform at an Olympic opening ceremony.",
-    color: "#ED2939",
-  },
-  {
-    roman: "IV",
-    name: "Égalité",
-    translation: "Equality",
-    perf: "Aya Nakamura performing \"Pookie,\" \"Djadja,\" and Charles Aznavour's \"For me formidable\" with the Republican Guard.",
-    sig: "A celebration of French-African cultural contribution and the universality of French song, in front of the Institut de France.",
-    color: "#f0c040",
-  },
-  {
-    roman: "V",
-    name: "Fraternité",
-    translation: "Brotherhood",
-    perf: "The Minions stealing the Mona Lisa; tributes to the Lumière brothers and Georges Méliès; pianist Alexandre Kantorow performing Ravel's \"Jeux d'eau.\"",
-    sig: "Acknowledged the 1911 theft of the Mona Lisa, French animation studios (Illumination), Jules Verne's Nautilus, and the 1902 sci-fi film Le Voyage Dans La Lune.",
-    color: "#a78bfa",
-  },
-  {
-    roman: "VI",
-    name: "Sororité",
-    translation: "Sisterhood",
-    perf: "Ten golden statues of notable French women rising from the Seine.",
-    sig: "Celebrated heroines including Olympe de Gouges, Simone de Beauvoir, Alice Guy Blaché, and Simone Veil — addressing the historical imbalance of only ~40 women's statues versus 260 men's in Paris.",
-    color: "#f9a8d4",
-  },
-  {
-    roman: "VII",
-    name: "Sportivité",
-    translation: "Sportsmanship",
-    perf: "Polish countertenor Jakub Józef Orliński as Pierrot, performing Rameau's Les Indes galantes, then breakdancing.",
-    sig: "A fusion of Baroque opera and breakdancing, celebrating the sport's inclusion in the Paris Games for the first time.",
-    color: "#34d399",
-  },
-  {
-    roman: "VIII",
-    name: "Festivité",
-    translation: "Festivity",
-    perf: "Fashion runway on Passerelle Debilly; Philippe Katerine as a blue Dionysus; drag queens in a Bacchanalian feast.",
-    sig: "A tribute to French fashion and the European Union. The tableau was inspired by Jan van Bijlert's 1635–40 painting The Feast of the Gods, though some misinterpreted it as a parody of The Last Supper.",
-    color: "#fbbf24",
-  },
-  {
-    roman: "IX",
-    name: "Obscurité",
-    translation: "Darkness",
-    perf: "Juliette Armanet singing John Lennon's \"Imagine\" on a raft; Sofiane Pamart on a burning piano.",
-    sig: "A somber meditation on climate disasters — droughts, floods, forest fires — and a call for global peace and solidarity.",
-    color: "#6b7280",
-  },
-  {
-    roman: "X",
-    name: "Solidarité",
-    translation: "Solidarity",
-    perf: "A hooded figure riding a mechanical silver horse at 25 km/h down the Seine, spreading dove wings.",
-    sig: "Represented both Joan of Arc and Sequana, the Gallo-Roman goddess of the Seine. The steampunk design nodded to Les Machines de l'île in Nantes. Referenced Pierre de Coubertin and Olympic history.",
-    color: "#c0c0c0",
-  },
-  {
-    roman: "XI",
-    name: "Solennité",
-    translation: "Solemnity",
-    perf: "Olympic Laurels awarded to Filippo Grandi (UN High Commissioner for Refugees); President Macron declared the Games open.",
-    sig: "The formal protocolar segment. The final torch relay featured Rafael Nadal, Carl Lewis, Serena Williams, and Nadia Comăneci on the Seine, culminating with Teddy Riner and Marie-José Pérec lighting the cauldron.",
-    color: "#f0c040",
-  },
-  {
-    roman: "XII",
-    name: "Éternité",
-    translation: "Eternity",
-    perf: "Céline Dion singing Édith Piaf's \"Hymne à l'amour\" from the Eiffel Tower.",
-    sig: "The emotional epilogue. Dion's return after her stiff-person syndrome diagnosis was universally praised as the most powerful moment of the ceremony.",
-    color: "#f0c040",
-  },
-];
+// ─── The 12 Acts — Interactive Timeline ──────────────────────────────────────
+function ActsTimeline() {
+  const [activeAct, setActiveAct] = useState<number | null>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
 
-function ActsSection() {
+  const handleActClick = (i: number) => {
+    setActiveAct(activeAct === i ? null : i);
+  };
+
   return (
-    <section id="acts" className="py-32" style={{ background: "linear-gradient(to bottom, #0a0e1a 0%, #0d1228 50%, #0a0e1a 100%)" }}>
+    <section id="acts" style={{ padding: "8rem 0", background: "var(--cream)" }}>
       <div className="container">
-        <div className="fade-up mb-16 text-center">
-          <p className="section-label mb-3">II — The Twelve Acts</p>
-          <h2 className="display-heading mb-5" style={{ fontSize: "clamp(2rem, 4.5vw, 3.5rem)" }}>
-            Scenes from <span className="text-gold italic">French History</span>
+        <div className="fade-up" style={{ marginBottom: "3rem" }}>
+          <p className="section-label">II. The Artistic Programme</p>
+          <div className="gold-rule" style={{ margin: "1rem 0 1.5rem" }} />
+          <h2 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(2.2rem, 4vw, 3.5rem)", fontWeight: 700, color: "var(--navy)", lineHeight: 1.1 }}>
+            The Twelve Acts
           </h2>
-          <div className="gold-rule mx-auto mb-6" />
-          <p className="text-white/55 max-w-2xl mx-auto" style={{ fontFamily: "var(--font-body)", fontSize: "0.95rem", lineHeight: 1.8, fontWeight: 300 }}>
-            The ceremony's twelve acts — named after French Republican values and cultural concepts — wove together classical art, modern pop culture, and historical milestones along the Seine.
+          <p className="body-text" style={{ maxWidth: 600, marginTop: "1rem" }}>
+            Each act was staged at a different bridge or landmark along the Seine, weaving together French history, art, music, and political philosophy. Click any act to expand its full story.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5 stagger-children">
-          {ACTS.map((act) => (
-            <div key={act.roman} className="glass-card act-card p-6 relative overflow-hidden">
-              {/* Roman numeral background */}
-              <div className="absolute top-2 right-4 select-none pointer-events-none"
-                style={{ fontFamily: "var(--font-display)", fontSize: "5rem", fontWeight: 700, color: act.color, opacity: 0.07, lineHeight: 1 }}>
-                {act.roman}
-              </div>
-              <div className="relative z-10">
-                <div className="flex items-baseline gap-3 mb-3">
-                  <span style={{ fontFamily: "var(--font-display)", fontSize: "0.85rem", fontWeight: 600, color: act.color, letterSpacing: "0.1em" }}>
-                    ACT {act.roman}
+        {/* Horizontal scroll timeline */}
+        <div
+          ref={trackRef}
+          className="timeline-track"
+          style={{ paddingBottom: "1.5rem" }}
+        >
+          {ACTS.map((act, i) => (
+            <div
+              key={act.num}
+              className={`timeline-item ${activeAct === i ? "active" : ""}`}
+              onClick={() => handleActClick(i)}
+              style={{
+                flex: activeAct === i ? "0 0 420px" : "0 0 260px",
+                marginRight: "1px",
+                cursor: "pointer",
+                transition: "flex 0.4s ease",
+              }}
+            >
+              <div
+                style={{
+                  height: activeAct === i ? "auto" : 320,
+                  minHeight: 320,
+                  background: activeAct === i ? act.color : "#fff",
+                  border: `1px solid ${activeAct === i ? act.color : "var(--border-light)"}`,
+                  borderRadius: 4,
+                  padding: "1.75rem",
+                  display: "flex",
+                  flexDirection: "column",
+                  transition: "all 0.4s ease",
+                  boxShadow: activeAct === i ? `0 12px 40px ${act.color}33` : "none",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "1rem" }}>
+                  <span style={{
+                    fontFamily: "var(--font-display)",
+                    fontSize: "2.5rem",
+                    fontWeight: 700,
+                    color: activeAct === i ? "rgba(255,255,255,0.3)" : "var(--border-light)",
+                    lineHeight: 1,
+                  }}>
+                    {act.num}
                   </span>
-                  <div className="flex-1 h-px" style={{ background: `${act.color}30` }} />
+                  <span style={{
+                    fontFamily: "var(--font-body)",
+                    fontSize: "0.62rem",
+                    fontWeight: 600,
+                    letterSpacing: "0.12em",
+                    textTransform: "uppercase",
+                    color: activeAct === i ? "rgba(255,255,255,0.6)" : "var(--text-light)",
+                    textAlign: "right",
+                    maxWidth: 120,
+                  }}>
+                    {act.location}
+                  </span>
                 </div>
-                <h3 className="display-heading mb-1" style={{ fontSize: "1.4rem", color: "#fff" }}>{act.name}</h3>
-                <p style={{ fontFamily: "var(--font-body)", fontSize: "0.72rem", color: act.color, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: "12px", fontWeight: 500 }}>
-                  {act.translation}
+                <h3 style={{
+                  fontFamily: "var(--font-display)",
+                  fontSize: "1.5rem",
+                  fontWeight: 700,
+                  color: activeAct === i ? "#fff" : "var(--navy)",
+                  marginBottom: "0.75rem",
+                  lineHeight: 1.2,
+                }}>
+                  {act.title}
+                </h3>
+                <p style={{
+                  fontFamily: "var(--font-body)",
+                  fontSize: "0.83rem",
+                  color: activeAct === i ? "rgba(255,255,255,0.85)" : "var(--text-mid)",
+                  lineHeight: 1.6,
+                  fontWeight: 300,
+                  flex: 1,
+                }}>
+                  {act.summary}
                 </p>
-                <p className="text-white/60 mb-3" style={{ fontFamily: "var(--font-body)", fontSize: "0.83rem", lineHeight: 1.65, fontWeight: 400 }}>
-                  <span className="text-white/40 text-xs uppercase tracking-wider">Performance: </span>{act.perf}
-                </p>
-                <p className="text-white/50" style={{ fontFamily: "var(--font-body)", fontSize: "0.82rem", lineHeight: 1.65, fontWeight: 300 }}>
-                  <span className="text-white/35 text-xs uppercase tracking-wider">Significance: </span>{act.sig}
-                </p>
+
+                {/* Expanded content */}
+                {activeAct === i && (
+                  <div style={{ marginTop: "1.5rem", borderTop: "1px solid rgba(255,255,255,0.2)", paddingTop: "1.5rem" }}>
+                    <p style={{
+                      fontFamily: "var(--font-body)",
+                      fontSize: "0.85rem",
+                      color: "rgba(255,255,255,0.9)",
+                      lineHeight: 1.75,
+                      fontWeight: 300,
+                      marginBottom: "1.25rem",
+                    }}>
+                      {act.detail}
+                    </p>
+                    <div>
+                      <p style={{ fontFamily: "var(--font-body)", fontSize: "0.65rem", fontWeight: 600, letterSpacing: "0.15em", textTransform: "uppercase", color: "rgba(255,255,255,0.5)", marginBottom: "0.5rem" }}>
+                        Key Figures
+                      </p>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+                        {act.figures.map((f) => (
+                          <span key={f} style={{
+                            fontFamily: "var(--font-body)",
+                            fontSize: "0.72rem",
+                            background: "rgba(255,255,255,0.15)",
+                            color: "#fff",
+                            padding: "3px 10px",
+                            borderRadius: 2,
+                            fontWeight: 400,
+                          }}>
+                            {f}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Expand indicator */}
+                {activeAct !== i && (
+                  <div style={{ marginTop: "1rem", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                    <span style={{ fontFamily: "var(--font-body)", fontSize: "0.68rem", color: act.color, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                      Read more
+                    </span>
+                    <span style={{ color: act.color, fontSize: "0.8rem" }}>→</span>
+                  </div>
+                )}
               </div>
             </div>
           ))}
+        </div>
+
+        {/* Scroll hint */}
+        <p style={{ fontFamily: "var(--font-body)", fontSize: "0.72rem", color: "var(--text-light)", letterSpacing: "0.1em", textTransform: "uppercase", marginTop: "1rem", textAlign: "center" }}>
+          ← Scroll horizontally to explore all twelve acts →
+        </p>
+      </div>
+    </section>
+  );
+}
+
+// ─── Photo Gallery ────────────────────────────────────────────────────────────
+function PhotoGallery() {
+  return (
+    <section style={{ padding: "8rem 0", background: "#fff" }}>
+      <div className="container">
+        <div className="fade-up" style={{ marginBottom: "3rem" }}>
+          <p className="section-label">III. In the Frame</p>
+          <div className="gold-rule" style={{ margin: "1rem 0 1.5rem" }} />
+          <h2 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(2.2rem, 4vw, 3.5rem)", fontWeight: 700, color: "var(--navy)", lineHeight: 1.1 }}>
+            Ceremony Highlights
+          </h2>
+        </div>
+
+        {/* Row 1: Gojira + Marie Antoinette */}
+        <div className="fade-up" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
+          <div className="photo-card" style={{ height: 440 }}>
+            <img src={IMG.gojira} alt="Gojira performing at the Paris 2024 Olympics opening ceremony" />
+            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "linear-gradient(transparent, rgba(0,0,0,0.8))", padding: "2rem 1.5rem 1.5rem" }}>
+              <p style={{ fontFamily: "var(--font-body)", fontSize: "0.65rem", fontWeight: 600, color: "var(--gold-light)", letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: "0.3rem" }}>Act III · Liberté</p>
+              <p style={{ fontFamily: "var(--font-display)", fontSize: "1.1rem", color: "#fff", fontWeight: 600 }}>Gojira at the Conciergerie</p>
+            </div>
+          </div>
+          <div className="photo-card" style={{ height: 440 }}>
+            <img src={IMG.marieAnt} alt="Marie Antoinette scene at the Paris 2024 Olympics" />
+            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "linear-gradient(transparent, rgba(0,0,0,0.8))", padding: "2rem 1.5rem 1.5rem" }}>
+              <p style={{ fontFamily: "var(--font-body)", fontSize: "0.65rem", fontWeight: 600, color: "var(--gold-light)", letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: "0.3rem" }}>Act III · Liberté</p>
+              <p style={{ fontFamily: "var(--font-display)", fontSize: "1.1rem", color: "#fff", fontWeight: 600 }}>Marie Antoinette's Severed Head</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Row 2: Performers + Cauldron + Celine */}
+        <div className="fade-up" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
+          <div className="photo-card" style={{ height: 300 }}>
+            <img src={IMG.performers} alt="Ceremony performers on the Seine" />
+            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "linear-gradient(transparent, rgba(0,0,0,0.75))", padding: "1.5rem 1.25rem 1.25rem" }}>
+              <p style={{ fontFamily: "var(--font-display)", fontSize: "0.95rem", color: "#fff", fontWeight: 600 }}>Parade of Nations</p>
+            </div>
+          </div>
+          <div className="photo-card" style={{ height: 300 }}>
+            <img src={IMG.cauldron} alt="Olympic cauldron hot air balloon" />
+            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "linear-gradient(transparent, rgba(0,0,0,0.75))", padding: "1.5rem 1.25rem 1.25rem" }}>
+              <p style={{ fontFamily: "var(--font-display)", fontSize: "0.95rem", color: "#fff", fontWeight: 600 }}>The Olympic Cauldron Ascends</p>
+            </div>
+          </div>
+          <div className="photo-card" style={{ height: 300 }}>
+            <img src={IMG.celineEiffel} alt="Celine Dion at the Eiffel Tower" />
+            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "linear-gradient(transparent, rgba(0,0,0,0.75))", padding: "1.5rem 1.25rem 1.25rem" }}>
+              <p style={{ fontFamily: "var(--font-display)", fontSize: "0.95rem", color: "#fff", fontWeight: 600 }}>Celine Dion at the Eiffel Tower</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Row 3: Lady Gaga + Ceremony moments */}
+        <div className="fade-up" style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "1rem" }}>
+          <div className="photo-card" style={{ height: 320 }}>
+            <img src={IMG.ladyGaga} alt="Lady Gaga opening the ceremony" />
+            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "linear-gradient(transparent, rgba(0,0,0,0.75))", padding: "1.5rem 1.25rem 1.25rem" }}>
+              <p style={{ fontFamily: "var(--font-body)", fontSize: "0.65rem", fontWeight: 600, color: "var(--gold-light)", letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: "0.3rem" }}>Act I · Enchanté</p>
+              <p style={{ fontFamily: "var(--font-display)", fontSize: "0.95rem", color: "#fff", fontWeight: 600 }}>Lady Gaga Opens the Games</p>
+            </div>
+          </div>
+          <div className="photo-card" style={{ height: 320 }}>
+            <img src={IMG.ceremony} alt="Opening ceremony highlights" />
+            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "linear-gradient(transparent, rgba(0,0,0,0.75))", padding: "1.5rem 1.25rem 1.25rem" }}>
+              <p style={{ fontFamily: "var(--font-display)", fontSize: "0.95rem", color: "#fff", fontWeight: 600 }}>The Seine at Night</p>
+            </div>
+          </div>
         </div>
       </div>
     </section>
   );
 }
 
-// ─── Closing Ceremony Section ─────────────────────────────────────────────────
+// ─── Closing Ceremony ─────────────────────────────────────────────────────────
 function ClosingSection() {
   return (
-    <section id="closing" className="py-32 relative overflow-hidden">
-      <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 30% 50%, rgba(240,192,64,0.04) 0%, transparent 70%)" }} />
+    <section id="closing" style={{ padding: "8rem 0", background: "var(--navy)" }}>
       <div className="container">
-        <div className="fade-up mb-20">
-          <p className="section-label mb-3">III — The Closing</p>
-          <h2 className="display-heading mb-5" style={{ fontSize: "clamp(2.2rem, 5vw, 3.8rem)" }}>
-            "Records" — The Games<br />
-            <span className="text-gold italic">Disappear &amp; Return</span>
+        <div className="fade-up" style={{ marginBottom: "4rem" }}>
+          <p className="section-label" style={{ color: "var(--gold)" }}>IV. The Closing Ceremony</p>
+          <div className="gold-rule" style={{ margin: "1rem 0 1.5rem" }} />
+          <h2 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(2.2rem, 4vw, 3.5rem)", fontWeight: 700, color: "#fff", lineHeight: 1.1 }}>
+            August 11, 2024 — "Records"
           </h2>
-          <div className="gold-rule mb-6" />
-          <p className="text-white/65 max-w-2xl" style={{ fontFamily: "var(--font-body)", fontSize: "1rem", lineHeight: 1.8, fontWeight: 300 }}>
-            The Closing Ceremony, titled "Records," took place on August 11, 2024, at the Stade de France. Also directed by Thomas Jolly, the event imagined a dystopian future where the Olympic Games had disappeared and were rediscovered — paying homage to French baron Pierre de Coubertin, who revived the modern Olympics.
+          <p className="body-text" style={{ color: "rgba(255,255,255,0.65)", maxWidth: 600, marginTop: "1rem" }}>
+            Titled "Records," the closing ceremony at the Stade de France was a celebration of athletic achievement, French culture, and a handover to Los Angeles 2028 — punctuated by one of the most spectacular stunts in Olympic history.
           </p>
         </div>
 
-        {/* Image + description */}
-        <div className="grid md:grid-cols-2 gap-12 items-center mb-24">
-          <div className="fade-up order-2 md:order-1">
-            <div className="mb-8">
-              <h3 className="display-heading mb-3" style={{ fontSize: "1.6rem" }}>The Golden Voyager</h3>
-              <p className="text-white/60" style={{ fontFamily: "var(--font-body)", fontSize: "0.92rem", lineHeight: 1.8, fontWeight: 300 }}>
-                The central artistic segment featured the "Golden Voyager," a golden-winged humanoid alien portrayed by dancer Arthur Cadre. Inspired by the Voyager Golden Record (a French-made artifact sent into space) and the "spirit of the Bastille," the character descended onto a stage shaped like a planisphere. Together with the masked torchbearer and the horsewoman from the Opening Ceremony, the Golden Voyager mimed an archaeological excavation — unearthing a replica of the <em>Winged Victory of Samothrace</em> and the five Olympic rings, symbolizing the revival of the Olympic spirit.
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4rem", alignItems: "start" }}>
+          <div className="fade-up">
+            <h3 style={{ fontFamily: "var(--font-display)", fontSize: "1.6rem", fontWeight: 700, color: "var(--gold-light)", marginBottom: "1.5rem" }}>
+              The Golden Voyager
+            </h3>
+            <p className="body-text" style={{ color: "rgba(255,255,255,0.7)", marginBottom: "1.5rem" }}>
+              The ceremony opened with the "Golden Voyager" — a figure inspired by the Voyager Golden Record and the spirit of the Bastille — who "excavated" the Olympic rings and a replica of the <strong style={{ color: "#fff" }}>Winged Victory of Samothrace</strong> from beneath the stadium turf. French bands <strong style={{ color: "#fff" }}>Phoenix</strong> and <strong style={{ color: "#fff" }}>Air</strong> performed, alongside Angele and Kavinsky, in a celebration of France's contribution to electronic and indie music.
+            </p>
+            <h3 style={{ fontFamily: "var(--font-display)", fontSize: "1.6rem", fontWeight: 700, color: "var(--gold-light)", marginBottom: "1.5rem", marginTop: "2rem" }}>
+              The LA28 Handover
+            </h3>
+            <p className="body-text" style={{ color: "rgba(255,255,255,0.7)", marginBottom: "1.5rem" }}>
+              <strong style={{ color: "#fff" }}>Tom Cruise</strong> abseiled from the stadium roof, took the Olympic flag on a motorcycle, and skydived into the Hollywood Hills — where live performances from <strong style={{ color: "#fff" }}>Red Hot Chili Peppers, Billie Eilish, Snoop Dogg, and Dr. Dre</strong> in Long Beach, California, signaled the baton passing to Los Angeles.
+            </p>
+            <p className="body-text" style={{ color: "rgba(255,255,255,0.7)" }}>
+              The finale saw French singer <strong style={{ color: "#fff" }}>Yseult</strong> perform Frank Sinatra's "My Way" — itself adapted from the French song "Comme d'habitude" — bringing the Games full circle with a reminder that American culture, too, is often French at its roots.
+            </p>
+            <div className="quote-block" style={{ borderLeftColor: "var(--gold)", marginTop: "2rem" }}>
+              <p style={{ fontFamily: "var(--font-display)", fontSize: "1.2rem", fontStyle: "italic", color: "rgba(255,255,255,0.9)", lineHeight: 1.5 }}>
+                "Tom Cruise was the headline act on an evening proudly declaring a message about protecting the spirit of the Games."
               </p>
-            </div>
-            <div>
-              <h3 className="display-heading mb-3" style={{ fontSize: "1.6rem" }}>The Finale: "My Way"</h3>
-              <p className="text-white/60" style={{ fontFamily: "var(--font-body)", fontSize: "0.92rem", lineHeight: 1.8, fontWeight: 300 }}>
-                French singer Yseult performed Frank Sinatra's "My Way" — itself adapted to English by Paul Anka from the French song "Comme d'habitude" by Claude François — bringing the Games to a poetic, full-circle close. A spectacular fireworks display from the Stade de France roof followed.
+              <p style={{ fontFamily: "var(--font-body)", fontSize: "0.72rem", color: "rgba(255,255,255,0.4)", marginTop: "0.75rem", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                — The Guardian, August 12, 2024
               </p>
             </div>
           </div>
-          <div className="fade-up order-1 md:order-2">
-            <div className="relative overflow-hidden rounded-sm" style={{ border: "1px solid rgba(240,192,64,0.2)" }}>
-              <img
-                src="https://d2xsxph8kpxj0f.cloudfront.net/310519663375659687/adZ8ed6MMkFAwXrUccjYXT/closing_ceremony-ZU5wQ7JET5zMid2rpF2p5a.webp"
-                alt="Paris 2024 Closing Ceremony at Stade de France"
-                className="w-full object-cover"
-                style={{ aspectRatio: "16/9" }}
-              />
-              <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(10,14,26,0.5) 0%, transparent 60%)" }} />
-              <div className="absolute bottom-4 left-4">
-                <p className="text-white/50" style={{ fontFamily: "var(--font-body)", fontSize: "0.7rem", letterSpacing: "0.1em" }}>
-                  AUGUST 11, 2024 · STADE DE FRANCE, SAINT-DENIS
-                </p>
+
+          <div className="fade-in">
+            <div className="photo-card" style={{ height: 340, marginBottom: "1rem" }}>
+              <img src={IMG.tomCruise} alt="Tom Cruise at the Paris 2024 closing ceremony" />
+              <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "linear-gradient(transparent, rgba(0,0,0,0.8))", padding: "1.5rem" }}>
+                <p style={{ fontFamily: "var(--font-display)", fontSize: "1rem", color: "#fff", fontWeight: 600 }}>Tom Cruise — The LA28 Handover</p>
+              </div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+              <div className="photo-card" style={{ height: 220 }}>
+                <img src={IMG.billie} alt="Billie Eilish at the closing ceremony" />
+                <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "linear-gradient(transparent, rgba(0,0,0,0.75))", padding: "1rem" }}>
+                  <p style={{ fontFamily: "var(--font-display)", fontSize: "0.9rem", color: "#fff", fontWeight: 600 }}>Billie Eilish</p>
+                </div>
+              </div>
+              <div className="photo-card" style={{ height: 220 }}>
+                <img src={IMG.snoop} alt="Snoop Dogg at the closing ceremony" />
+                <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "linear-gradient(transparent, rgba(0,0,0,0.75))", padding: "1rem" }}>
+                  <p style={{ fontFamily: "var(--font-display)", fontSize: "0.9rem", color: "#fff", fontWeight: 600 }}>Snoop Dogg</p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-
-        {/* LA28 Handover */}
-        <div className="fade-up mb-8">
-          <p className="section-label mb-4">The LA28 Handover</p>
-        </div>
-        <div className="glass-card p-8 mb-8 fade-up" style={{ borderColor: "rgba(240,192,64,0.25)" }}>
-          <div className="grid md:grid-cols-2 gap-8">
-            <div>
-              <h3 className="display-heading mb-4" style={{ fontSize: "1.5rem" }}>Tom Cruise &amp; the Olympic Flag</h3>
-              <p className="text-white/60" style={{ fontFamily: "var(--font-body)", fontSize: "0.9rem", lineHeight: 1.8, fontWeight: 300 }}>
-                Paris Mayor Anne Hidalgo passed the Olympic flag to IOC President Thomas Bach, who handed it to Los Angeles Mayor Karen Bass — the first Black female mayor to receive the Olympic flag — and American gymnast Simone Biles. Actor Tom Cruise then abseiled from the Stade de France roof to the <em>Mission: Impossible</em> theme, took the flag, and rode out on a motorcycle. A pre-recorded segment showed Cruise skydiving into the Hollywood Hills, transforming the Hollywood Sign to include the Olympic rings.
-              </p>
-            </div>
-            <div>
-              <h3 className="display-heading mb-4" style={{ fontSize: "1.5rem" }}>Long Beach Performances</h3>
-              <p className="text-white/60" style={{ fontFamily: "var(--font-body)", fontSize: "0.9rem", lineHeight: 1.8, fontWeight: 300 }}>
-                The ceremony concluded with a broadcast from Long Beach, California, featuring the Red Hot Chili Peppers ("Can't Stop"), Billie Eilish with her brother Finneas O'Connell ("Birds of a Feather"), and Snoop Dogg and Dr. Dre ("The Next Episode"). The segment was widely praised for showcasing the cultural and entertainment power of Los Angeles, the 2028 host city.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Concert performers grid */}
-        <div className="stagger-children grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { name: "Phoenix & Air", role: "French bands — concert segment" },
-            { name: "Red Hot Chili Peppers", role: "LA28 handover — Long Beach" },
-            { name: "Billie Eilish", role: "LA28 handover — Long Beach" },
-            { name: "Snoop Dogg & Dr. Dre", role: "LA28 handover — Long Beach" },
-          ].map((p) => (
-            <div key={p.name} className="glass-card p-5 text-center act-card">
-              <p className="display-heading mb-1" style={{ fontSize: "1rem", color: "#fff" }}>{p.name}</p>
-              <p className="text-white/40" style={{ fontFamily: "var(--font-body)", fontSize: "0.75rem", lineHeight: 1.5 }}>{p.role}</p>
-            </div>
-          ))}
         </div>
       </div>
     </section>
   );
 }
 
-// ─── Mascot Section ───────────────────────────────────────────────────────────
+// ─── Mascot ───────────────────────────────────────────────────────────────────
 function MascotSection() {
   return (
-    <section id="mascot" className="py-32 relative overflow-hidden" style={{ background: "linear-gradient(to bottom, #0a0e1a 0%, #0e1530 50%, #0a0e1a 100%)" }}>
-      <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 50% 30%, rgba(237,41,57,0.06) 0%, transparent 60%)" }} />
+    <section id="mascot" style={{ padding: "8rem 0", background: "#fff" }}>
       <div className="container">
-        <div className="fade-up mb-16 text-center">
-          <p className="section-label mb-3">IV — The Mascot</p>
-          <h2 className="display-heading mb-5" style={{ fontSize: "clamp(2rem, 4.5vw, 3.5rem)" }}>
-            The Phryges &amp; the<br />
-            <span className="text-gold italic">Symbolism of Liberty</span>
-          </h2>
-          <div className="gold-rule mx-auto mb-6" />
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-16 items-center mb-20">
-          <div className="fade-up flex justify-center">
-            <div className="relative" style={{ maxWidth: "380px" }}>
-              <div className="absolute -inset-8 rounded-full" style={{ background: "radial-gradient(circle, rgba(237,41,57,0.15) 0%, transparent 70%)" }} />
-              <img
-                src="https://d2xsxph8kpxj0f.cloudfront.net/310519663375659687/adZ8ed6MMkFAwXrUccjYXT/phryge_mascot-mshuPsoPXib9A3wdJmcaM5.webp"
-                alt="Paris 2024 Phryge mascot"
-                className="relative z-10 w-full object-contain"
-                style={{ filter: "drop-shadow(0 20px 60px rgba(237,41,57,0.3))" }}
-              />
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5rem", alignItems: "center" }}>
+          <div className="fade-in">
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+              <div className="photo-card" style={{ height: 360 }}>
+                <img src={IMG.phryge} alt="The Phryge Olympic mascot" />
+              </div>
+              <div className="photo-card" style={{ height: 360 }}>
+                <img src={IMG.phryge2} alt="The Phryge Paralympic mascot" />
+              </div>
             </div>
           </div>
           <div className="fade-up">
-            <h3 className="display-heading mb-4" style={{ fontSize: "1.8rem" }}>What is the Phryge?</h3>
-            <p className="text-white/65 mb-5" style={{ fontFamily: "var(--font-body)", fontSize: "0.95rem", lineHeight: 1.8, fontWeight: 300 }}>
-              Unlike traditional Olympic mascots — typically animals native to the host country — the Paris 2024 mascots were the "Phryges" (pronounced FREE-juh). They are anthropomorphic representations of the Phrygian cap, a soft, conical red hat that serves as a potent symbol of liberty and the French Republic.
+            <p className="section-label">V. The Mascot</p>
+            <div className="gold-rule" style={{ margin: "1rem 0 1.5rem" }} />
+            <h2 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(2rem, 3.5vw, 3rem)", fontWeight: 700, color: "var(--navy)", lineHeight: 1.1, marginBottom: "1.5rem" }}>
+              The Phryge:<br />A Cap Full of History
+            </h2>
+            <p className="body-text" style={{ marginBottom: "1.25rem" }}>
+              The Paris 2024 mascots — known as the <strong>Phryges</strong> — are anthropomorphic <strong>Phrygian caps</strong>: the soft, conical red hat that has been a symbol of liberty for over two millennia. Originally worn by freed slaves in ancient Rome to mark their emancipation, the cap was adopted by the French Revolution's <em>sans-culottes</em> as the bonnet rouge — the red cap of freedom.
             </p>
-            <p className="text-white/65 mb-5" style={{ fontFamily: "var(--font-body)", fontSize: "0.95rem", lineHeight: 1.8, fontWeight: 300 }}>
-              The Phrygian cap has ancient origins, worn by freed slaves in the Roman Empire and by the Phrygians of central Anatolia. It gained its most profound political significance during the French Revolution (1789–1799), where it was adopted by the working-class <em>sans-culottes</em> as a symbol of freedom from tyranny and monarchy.
+            <p className="body-text" style={{ marginBottom: "1.25rem" }}>
+              Today, the Phrygian cap is worn by <strong>Marianne</strong> — the allegorical female figure who personifies the French Republic — and appears on the official seal of France. By making the cap itself the mascot, Paris 2024 embedded the Games' identity within the deepest roots of French republican values: liberty, equality, and fraternity.
             </p>
-            <p className="text-white/65" style={{ fontFamily: "var(--font-body)", fontSize: "0.95rem", lineHeight: 1.8, fontWeight: 300 }}>
-              Today, the cap is worn by Marianne — the national personification of the French Republic — whose profile is integrated into the Paris 2024 Olympic logo. It appears on French coins, stamps, and in iconic artworks such as Eugène Delacroix's <em>Liberty Leading the People</em>.
+            <p className="body-text" style={{ marginBottom: "1.5rem" }}>
+              The <strong>Paralympic Phryge</strong> wears a running prosthesis on its right leg — a powerful symbol of inclusion and the Paralympic movement's ethos that disability is not a barrier to athletic excellence. Despite early mockery over its unconventional shape, the Phryge became a commercial phenomenon: over <strong>1.3 million plush toys</strong> were sold during the Games.
             </p>
-          </div>
-        </div>
-
-        {/* Design & Reception cards */}
-        <div className="grid md:grid-cols-3 gap-6 stagger-children">
-          <div className="glass-card act-card p-7">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center mb-4" style={{ background: "rgba(237,41,57,0.15)", border: "1px solid rgba(237,41,57,0.3)" }}>
-              <span style={{ color: "#ED2939", fontSize: "1.2rem" }}>🎨</span>
+            <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap" }}>
+              <div style={{ padding: "1rem 1.5rem", background: "var(--cream)", borderRadius: 4, borderLeft: "3px solid var(--gold)" }}>
+                <p style={{ fontFamily: "var(--font-body)", fontSize: "0.68rem", fontWeight: 600, color: "var(--gold)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: "0.25rem" }}>Symbol</p>
+                <p style={{ fontFamily: "var(--font-display)", fontSize: "1rem", color: "var(--navy)", fontWeight: 600 }}>Liberty &amp; Emancipation</p>
+              </div>
+              <div style={{ padding: "1rem 1.5rem", background: "var(--cream)", borderRadius: 4, borderLeft: "3px solid var(--navy)" }}>
+                <p style={{ fontFamily: "var(--font-body)", fontSize: "0.68rem", fontWeight: 600, color: "var(--navy)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: "0.25rem" }}>Origin</p>
+                <p style={{ fontFamily: "var(--font-display)", fontSize: "1rem", color: "var(--navy)", fontWeight: 600 }}>Ancient Rome → French Revolution</p>
+              </div>
+              <div style={{ padding: "1rem 1.5rem", background: "var(--cream)", borderRadius: 4, borderLeft: "3px solid var(--red-fr)" }}>
+                <p style={{ fontFamily: "var(--font-body)", fontSize: "0.68rem", fontWeight: 600, color: "var(--red-fr)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: "0.25rem" }}>Sales</p>
+                <p style={{ fontFamily: "var(--font-display)", fontSize: "1rem", color: "var(--navy)", fontWeight: 600 }}>1.3 Million Plush Toys Sold</p>
+              </div>
             </div>
-            <h3 className="display-heading mb-3" style={{ fontSize: "1.25rem" }}>Design</h3>
-            <p className="text-white/55" style={{ fontFamily: "var(--font-body)", fontSize: "0.87rem", lineHeight: 1.75, fontWeight: 300 }}>
-              The Olympic and Paralympic Phryges were designed as two red, triangular caps with large expressive eyes adorned with tricolor ribbons (cockades) representing the French flag. The Paralympic Phryge was notably designed with a visible running prosthesis, sending a powerful message of inclusion.
-            </p>
-          </div>
-          <div className="glass-card act-card p-7">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center mb-4" style={{ background: "rgba(240,192,64,0.1)", border: "1px solid rgba(240,192,64,0.25)" }}>
-              <span style={{ color: "#f0c040", fontSize: "1.2rem" }}>🏛️</span>
-            </div>
-            <h3 className="display-heading mb-3" style={{ fontSize: "1.25rem" }}>Historical Roots</h3>
-            <p className="text-white/55" style={{ fontFamily: "var(--font-body)", fontSize: "0.87rem", lineHeight: 1.75, fontWeight: 300 }}>
-              The Phrygian cap appears in Delacroix's <em>Liberty Leading the People</em> (1830), on the French Marianne, on the national seal, and on French euro coins. By choosing the cap as mascot, Paris 2024 embedded the ideals of Liberté, Égalité, Fraternité directly into the Games' identity.
-            </p>
-          </div>
-          <div className="glass-card act-card p-7">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center mb-4" style={{ background: "rgba(126,184,247,0.1)", border: "1px solid rgba(126,184,247,0.25)" }}>
-              <span style={{ color: "#7eb8f7", fontSize: "1.2rem" }}>💬</span>
-            </div>
-            <h3 className="display-heading mb-3" style={{ fontSize: "1.25rem" }}>Reception</h3>
-            <p className="text-white/55" style={{ fontFamily: "var(--font-body)", fontSize: "0.87rem", lineHeight: 1.75, fontWeight: 300 }}>
-              The mascot's reception was mixed internationally — some likened its shape to a tongue or the poop emoji, while in France it was affectionately nicknamed <em>les clitos nationales</em>. Despite the jokes, over 1.3 million plush toys were sold, and the mascot successfully highlighted France's revolutionary history.
-            </p>
           </div>
         </div>
       </div>
@@ -631,134 +954,216 @@ function MascotSection() {
   );
 }
 
-// ─── Conclusion Section ───────────────────────────────────────────────────────
-function ConclusionSection() {
+// ─── Journalist Interviews ────────────────────────────────────────────────────
+function InterviewsSection() {
   return (
-    <section className="py-32 relative overflow-hidden">
-      <div className="absolute inset-0">
-        <img
-          src="https://d2xsxph8kpxj0f.cloudfront.net/310519663375659687/adZ8ed6MMkFAwXrUccjYXT/paris_hero-J2tyGhzJwtBZrowdSpAnap.webp"
-          alt="Paris at night"
-          className="w-full h-full object-cover"
-          style={{ filter: "brightness(0.2) saturate(0.6)" }}
-        />
-        <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, #0a0e1a 0%, rgba(10,14,26,0.7) 40%, rgba(10,14,26,0.7) 60%, #0a0e1a 100%)" }} />
-      </div>
-      <div className="container relative z-10">
-        <div className="max-w-3xl mx-auto text-center fade-up">
-          <p className="section-label mb-4">Conclusion</p>
-          <h2 className="display-heading mb-6" style={{ fontSize: "clamp(1.8rem, 4vw, 3rem)" }}>
-            A Masterclass in<br />
-            <span className="text-gold italic">Cultural Storytelling</span>
+    <section id="interviews" style={{ padding: "8rem 0", background: "var(--cream)" }}>
+      <div className="container">
+        <div className="fade-up" style={{ marginBottom: "4rem" }}>
+          <p className="section-label">VI. Voices</p>
+          <div className="gold-rule" style={{ margin: "1rem 0 1.5rem" }} />
+          <h2 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(2.2rem, 4vw, 3.5rem)", fontWeight: 700, color: "var(--navy)", lineHeight: 1.1 }}>
+            Interviews &amp; Reactions
           </h2>
-          <div className="gold-rule mx-auto mb-8" />
-          <p className="text-white/65 mb-6" style={{ fontFamily: "var(--font-body)", fontSize: "1rem", lineHeight: 1.9, fontWeight: 300 }}>
-            The 2024 Paris Olympics ceremonies and branding were a masterclass in cultural storytelling. By eschewing the safety of a stadium for the Opening Ceremony, Paris transformed its very streets, river, and monuments into a living theater. The events boldly celebrated French history — from the bloody legacy of the Revolution to the pioneering achievements in cinema, aviation, and fashion — while unapologetically embracing modern values of diversity and inclusion.
+          <p className="body-text" style={{ maxWidth: 600, marginTop: "1rem" }}>
+            From the performers themselves to journalists and historians, the Paris 2024 ceremonies generated a global conversation about art, identity, and the meaning of France.
           </p>
-          <p className="text-white/55" style={{ fontFamily: "var(--font-body)", fontSize: "1rem", lineHeight: 1.9, fontWeight: 300 }}>
-            Through the Phryge mascot, the mysterious torchbearer, and the intricate artistic tableaux, Paris 2024 delivered a complex, deeply layered narrative that honored its past while looking toward the future — and toward Los Angeles 2028.
-          </p>
+        </div>
+
+        <div className="stagger-children" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2rem" }}>
+          {INTERVIEWS.map((iv) => (
+            <div key={iv.speaker + iv.source} className="editorial-card" style={{ padding: "2rem" }}>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: "1rem", marginBottom: "1.25rem" }}>
+                <div style={{ width: 4, alignSelf: "stretch", background: iv.color, borderRadius: 2, flexShrink: 0 }} />
+                <div>
+                  <h4 style={{ fontFamily: "var(--font-display)", fontSize: "1.15rem", fontWeight: 700, color: "var(--navy)", marginBottom: "0.2rem" }}>{iv.speaker}</h4>
+                  <p style={{ fontFamily: "var(--font-body)", fontSize: "0.7rem", fontWeight: 600, color: iv.color, letterSpacing: "0.1em", textTransform: "uppercase" }}>{iv.role}</p>
+                </div>
+              </div>
+              <blockquote style={{
+                fontFamily: "var(--font-display)",
+                fontSize: "1.05rem",
+                fontStyle: "italic",
+                color: "var(--text-dark)",
+                lineHeight: 1.65,
+                marginBottom: "1rem",
+                margin: "0 0 1rem 0",
+              }}>
+                "{iv.quote}"
+              </blockquote>
+              <div style={{ borderTop: "1px solid var(--border-light)", paddingTop: "0.75rem" }}>
+                <p style={{ fontFamily: "var(--font-body)", fontSize: "0.7rem", color: "var(--text-light)", marginBottom: "0.2rem" }}>
+                  <strong>Context:</strong> {iv.context}
+                </p>
+                <p style={{ fontFamily: "var(--font-body)", fontSize: "0.68rem", color: "var(--text-light)", fontStyle: "italic" }}>
+                  {iv.source}
+                </p>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </section>
   );
 }
 
-// ─── References Section ───────────────────────────────────────────────────────
+// ─── Medal Table ──────────────────────────────────────────────────────────────
+function MedalTable() {
+  const maxGold = Math.max(...MEDALS.map((m) => m.gold));
+  return (
+    <section id="medals" style={{ padding: "8rem 0", background: "#fff" }}>
+      <div className="container">
+        <div className="fade-up" style={{ marginBottom: "4rem" }}>
+          <p className="section-label">VII. The Scoreboard</p>
+          <div className="gold-rule" style={{ margin: "1rem 0 1.5rem" }} />
+          <h2 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(2.2rem, 4vw, 3.5rem)", fontWeight: 700, color: "var(--navy)", lineHeight: 1.1 }}>
+            Medal Table — Top Nations
+          </h2>
+        </div>
+        <div className="fade-up">
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-body)" }}>
+              <thead>
+                <tr style={{ borderBottom: "2px solid var(--navy)" }}>
+                  <th style={{ textAlign: "left", padding: "0.75rem 1rem", fontSize: "0.68rem", fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-light)" }}>Rank</th>
+                  <th style={{ textAlign: "left", padding: "0.75rem 1rem", fontSize: "0.68rem", fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-light)" }}>Nation</th>
+                  <th style={{ textAlign: "center", padding: "0.75rem 1rem", fontSize: "0.68rem", fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "#c8973a" }}>Gold</th>
+                  <th style={{ textAlign: "center", padding: "0.75rem 1rem", fontSize: "0.68rem", fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "#888" }}>Silver</th>
+                  <th style={{ textAlign: "center", padding: "0.75rem 1rem", fontSize: "0.68rem", fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "#a0522d" }}>Bronze</th>
+                  <th style={{ textAlign: "left", padding: "0.75rem 1rem", fontSize: "0.68rem", fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-light)" }}>Gold Distribution</th>
+                  <th style={{ textAlign: "center", padding: "0.75rem 1rem", fontSize: "0.68rem", fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--navy)" }}>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {MEDALS.map((m, i) => (
+                  <tr key={m.country} style={{ borderBottom: "1px solid var(--border-light)", background: m.country === "France" ? "rgba(200,151,58,0.05)" : "transparent" }}>
+                    <td style={{ padding: "1rem", fontSize: "0.85rem", color: "var(--text-light)", fontWeight: 500 }}>{i + 1}</td>
+                    <td style={{ padding: "1rem", display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                      <span style={{ fontSize: "1.4rem" }}>{m.flag}</span>
+                      <span style={{ fontFamily: "var(--font-body)", fontSize: "0.9rem", fontWeight: m.country === "France" ? 600 : 400, color: m.country === "France" ? "var(--navy)" : "var(--text-dark)" }}>
+                        {m.country}
+                      </span>
+                    </td>
+                    <td style={{ padding: "1rem", textAlign: "center", fontFamily: "var(--font-display)", fontSize: "1.1rem", fontWeight: 700, color: "#c8973a" }}>{m.gold}</td>
+                    <td style={{ padding: "1rem", textAlign: "center", fontFamily: "var(--font-display)", fontSize: "1.1rem", fontWeight: 600, color: "#888" }}>{m.silver}</td>
+                    <td style={{ padding: "1rem", textAlign: "center", fontFamily: "var(--font-display)", fontSize: "1.1rem", fontWeight: 600, color: "#a0522d" }}>{m.bronze}</td>
+                    <td style={{ padding: "1rem", minWidth: 200 }}>
+                      <div style={{ height: 8, background: "#f0ede6", borderRadius: 2, overflow: "hidden" }}>
+                        <div className="medal-bar" style={{ width: `${(m.gold / maxGold) * 100}%`, background: "linear-gradient(90deg, #c8973a, #e8b84b)" }} />
+                      </div>
+                    </td>
+                    <td style={{ padding: "1rem", textAlign: "center", fontFamily: "var(--font-display)", fontSize: "1.2rem", fontWeight: 700, color: "var(--navy)" }}>{m.total}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── Controversy Section ──────────────────────────────────────────────────────
+function ControversySection() {
+  const controversies = [
+    {
+      title: "The 'Last Supper' Debate",
+      color: "var(--red-fr)",
+      summary: "A tableau vivant featuring drag performers at a long banquet table was interpreted by many as a parody of Leonardo da Vinci's Last Supper. Religious groups worldwide condemned the scene; Thomas Jolly denied any Christian reference, stating it depicted the Greek gods of Olympus at a feast, inspired by Jan van Bijlert's 1640 painting 'The Feast of the Gods.' The AP reported that the scene's choreographer filed legal complaints after receiving death threats online.",
+      source: "AP, July 27, 2024; NYT, July 28, 2024",
+    },
+    {
+      title: "Gojira's 'Satanic' Performance",
+      color: "var(--navy)",
+      summary: "Social media personality Andrew Tate and others labeled Gojira's Marie Antoinette performance 'satanic.' Joe Duplantier responded: 'It's French history. It's French charm — beheaded people, red wine, and blood all over the place. It's romantic, it's normal.' He cited France's concept of laicite — the constitutional separation of church and state — as the framework for the performance's imagery.",
+      source: "Rolling Stone, July 29, 2024; Kerrang!, July 30, 2024",
+    },
+    {
+      title: "Aya Nakamura and the Far Right",
+      color: "var(--gold)",
+      summary: "Before the ceremony, far-right French politicians and commentators launched a campaign against Aya Nakamura's inclusion, questioning whether a French-Malian singer was 'French enough' to represent the nation. Her performance — universally praised by critics — was widely interpreted as a definitive answer. The NYT wrote: 'Aya Nakamura did more than open the Games. She redefined what it means to be French.'",
+      source: "NYT, July 29, 2024",
+    },
+    {
+      title: "The Displacement of Unhoused People",
+      color: "var(--text-mid)",
+      summary: "Academic historian Matthew Gin noted that the French government's aggressive removal of unhoused people from Paris in preparation for the Olympics echoed an 18th-century engraving of the 1739 Seine festival, in which a guard drives away a child in rags from the royal spectacle. The parallel raised questions about who the Games' message of 'fraternity' was truly intended for.",
+      source: "Journal18, September 3, 2024",
+    },
+  ];
+
+  return (
+    <section style={{ padding: "8rem 0", background: "var(--navy)" }}>
+      <div className="container">
+        <div className="fade-up" style={{ marginBottom: "4rem" }}>
+          <p className="section-label" style={{ color: "var(--gold)" }}>VIII. Controversy &amp; Debate</p>
+          <div className="gold-rule" style={{ margin: "1rem 0 1.5rem" }} />
+          <h2 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(2.2rem, 4vw, 3.5rem)", fontWeight: 700, color: "#fff", lineHeight: 1.1 }}>
+            When Art Provokes
+          </h2>
+          <p className="body-text" style={{ color: "rgba(255,255,255,0.6)", maxWidth: 600, marginTop: "1rem" }}>
+            No ceremony of this ambition could pass without controversy. The Paris 2024 opening ceremony generated global debate on religion, race, identity, and the social costs of hosting the Games.
+          </p>
+        </div>
+        <div className="stagger-children" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem" }}>
+          {controversies.map((c) => (
+            <div key={c.title} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 4, padding: "2rem", borderTop: `3px solid ${c.color}` }}>
+              <h3 style={{ fontFamily: "var(--font-display)", fontSize: "1.3rem", fontWeight: 700, color: "#fff", marginBottom: "1rem" }}>{c.title}</h3>
+              <p style={{ fontFamily: "var(--font-body)", fontSize: "0.88rem", color: "rgba(255,255,255,0.65)", lineHeight: 1.75, fontWeight: 300, marginBottom: "1rem" }}>{c.summary}</p>
+              <p style={{ fontFamily: "var(--font-body)", fontSize: "0.68rem", color: "rgba(255,255,255,0.35)", fontStyle: "italic", letterSpacing: "0.05em" }}>Source: {c.source}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── References ───────────────────────────────────────────────────────────────
 function ReferencesSection() {
-  const refs = [
-    { num: 1, title: "2024 Summer Olympics opening ceremony", source: "Wikipedia", url: "https://en.wikipedia.org/wiki/2024_Summer_Olympics_opening_ceremony" },
-    { num: 2, title: "The Paris Olympics Opening Ceremony Was an Art-Filled Extravaganza", source: "Artnet News, July 26, 2024", url: "https://news.artnet.com/art-world/paris-olympics-opening-ceremony-mona-lisa-2517224" },
-    { num: 3, title: "Historical References You May Have Missed During the Paris 2024 Opening Ceremony", source: "The Paris Palette, July 28, 2024", url: "https://parispalette.substack.com/p/historical-references-you-may-have" },
-    { num: 4, title: "Paris Olympics opening ceremony inspired by Dutch painting, not 'The Last Supper'", source: "Artsy, July 30, 2024", url: "https://www.artsy.net/article/artsy-editorial-paris-olympics-opening-ceremony-inspired-dutch-painting-the-supper" },
-    { num: 5, title: "2024 Summer Olympics closing ceremony", source: "Wikipedia", url: "https://en.wikipedia.org/wiki/2024_Summer_Olympics_closing_ceremony" },
-    { num: 6, title: "Phryges", source: "Wikipedia", url: "https://en.wikipedia.org/wiki/Phryges" },
-    { num: 7, title: "Phryge, the friendly Paris Olympics 2024 mascot, and the real meaning of red liberty caps", source: "The Conversation, August 8, 2024", url: "https://theconversation.com/phryge-the-friendly-paris-olympics-2024-mascot-and-the-real-meaning-of-red-liberty-caps-236212" },
-  ];
   return (
-    <section id="references" className="py-24" style={{ background: "#080c18", borderTop: "1px solid rgba(240,192,64,0.1)" }}>
+    <section id="references" style={{ padding: "8rem 0", background: "var(--cream)" }}>
       <div className="container">
-        <div className="fade-up mb-12">
-          <p className="section-label mb-3">Sources</p>
-          <h2 className="display-heading" style={{ fontSize: "clamp(1.5rem, 3vw, 2.2rem)" }}>References</h2>
-        </div>
-        <div className="stagger-children space-y-4">
-          {refs.map((r) => (
-            <div key={r.num} className="flex gap-5 items-start py-4" style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-              <span style={{ fontFamily: "var(--font-display)", fontSize: "1.1rem", fontWeight: 700, color: "var(--gold)", minWidth: "28px", paddingTop: "2px" }}>[{r.num}]</span>
-              <div>
-                <a href={r.url} target="_blank" rel="noopener noreferrer"
-                  className="text-white/80 hover:text-[#f0c040] transition-colors gold-underline"
-                  style={{ fontFamily: "var(--font-body)", fontSize: "0.9rem", fontWeight: 500 }}>
-                  {r.title}
-                </a>
-                <p className="text-white/35 mt-1" style={{ fontFamily: "var(--font-body)", fontSize: "0.78rem" }}>{r.source}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-
-// --- Pull Quote ---
-function PullQuote() {
-  return (
-    <section className="py-20 relative overflow-hidden" style={{ background: "linear-gradient(135deg, #0d1228 0%, #111830 100%)" }}>
-      <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 50% 50%, rgba(240,192,64,0.05) 0%, transparent 70%)" }} />
-      <div className="container relative z-10">
-        <div className="max-w-3xl mx-auto text-center fade-up">
-          <div className="text-6xl mb-6" style={{ color: "var(--gold)", fontFamily: "var(--font-display)", lineHeight: 1, opacity: 0.4 }}>"</div>
-          <blockquote style={{ fontFamily: "var(--font-display)", fontSize: "clamp(1.4rem, 3vw, 2rem)", fontWeight: 600, color: "#fff", lineHeight: 1.5, fontStyle: "italic" }}>
-            Paris has thrown away the rule book. For the first time in modern Olympic history, the city itself became the stage.
-          </blockquote>
-          <div className="gold-rule mx-auto mt-8 mb-4" />
-          <p className="text-white/40" style={{ fontFamily: "var(--font-body)", fontSize: "0.8rem", letterSpacing: "0.15em", textTransform: "uppercase" }}>
-            Thomas Jolly, Artistic Director &mdash; Paris 2024
-          </p>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// --- Key Figures Section ---
-function KeyFiguresSection() {
-  const figures = [
-    { name: "Thomas Jolly", role: "Artistic Director", desc: "Theatre director who conceived the entire artistic programme of both ceremonies, structuring the opening around 12 acts of French history and culture." },
-    { name: "Lady Gaga", role: "Opening — Act I", desc: "Performed a tribute to French cabaret icon Zizi Jeanmaire with Mon truc en plumes on a golden staircase beside the Seine." },
-    { name: "Gojira", role: "Opening — Act III", desc: "The first metal band to perform at an Olympic opening ceremony, playing the French Revolution anthem Ah! ca ira at the historic Conciergerie." },
-    { name: "Aya Nakamura", role: "Opening — Act IV", desc: "The most-streamed French-language artist in the world, performing in front of the Institut de France with the Republican Guard." },
-    { name: "Celine Dion", role: "Opening — Epilogue", desc: "Sang Edith Piaf's Hymne a l'amour from the Eiffel Tower in her first performance since her stiff-person syndrome diagnosis." },
-    { name: "Tom Cruise", role: "Closing — LA28 Handover", desc: "Abseiled from the Stade de France roof, took the Olympic flag on a motorcycle, then skydived into the Hollywood Hills in a pre-recorded segment." },
-    { name: "Teddy Riner & Marie-Jose Perec", role: "Olympic Cauldron", desc: "French Olympic champions who together lit the revolutionary hot-air balloon cauldron in the Tuileries Garden." },
-    { name: "Simone Biles", role: "Closing — Flag Bearer", desc: "American gymnastics legend who carried the Olympic flag during the LA28 handover ceremony alongside LA Mayor Karen Bass." },
-  ];
-  return (
-    <section className="py-24" style={{ background: "#0a0e1a" }}>
-      <div className="container">
-        <div className="fade-up mb-12">
-          <p className="section-label mb-3">Key Figures</p>
-          <h2 className="display-heading" style={{ fontSize: "clamp(1.8rem, 4vw, 3rem)" }}>
-            People Who Shaped<br /><span className="text-gold italic">the Games</span>
+        <div className="fade-up" style={{ marginBottom: "3rem" }}>
+          <p className="section-label">IX. Sources</p>
+          <div className="gold-rule" style={{ margin: "1rem 0 1.5rem" }} />
+          <h2 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(2rem, 3.5vw, 3rem)", fontWeight: 700, color: "var(--navy)", lineHeight: 1.1 }}>
+            References &amp; Further Reading
           </h2>
-          <div className="gold-rule mt-5" />
         </div>
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5 stagger-children">
-          {figures.map((fig) => (
-            <div key={fig.name} className="glass-card act-card p-6">
-              <div className="w-10 h-10 rounded-full mb-4 flex items-center justify-center" style={{ background: "rgba(240,192,64,0.1)", border: "1px solid rgba(240,192,64,0.2)" }}>
-                <span style={{ fontFamily: "var(--font-display)", fontWeight: 700, color: "var(--gold)", fontSize: "1rem" }}>
-                  {fig.name.charAt(0)}
+        <div className="fade-up">
+          <ol style={{ listStyle: "none", padding: 0, margin: 0 }}>
+            {REFERENCES.map((r, i) => (
+              <li
+                key={r.num}
+                style={{
+                  display: "flex",
+                  gap: "1.5rem",
+                  padding: "1.25rem 0",
+                  borderBottom: i < REFERENCES.length - 1 ? "1px solid var(--border-light)" : "none",
+                  alignItems: "flex-start",
+                }}
+              >
+                <span style={{ fontFamily: "var(--font-display)", fontSize: "1.1rem", fontWeight: 700, color: "var(--gold)", minWidth: 28, paddingTop: "0.1rem" }}>
+                  [{r.num}]
                 </span>
-              </div>
-              <h3 className="display-heading mb-1" style={{ fontSize: "1.05rem", color: "#fff" }}>{fig.name}</h3>
-              <p className="section-label mb-3" style={{ fontSize: "0.65rem" }}>{fig.role}</p>
-              <p className="text-white/50" style={{ fontFamily: "var(--font-body)", fontSize: "0.82rem", lineHeight: 1.65, fontWeight: 300 }}>{fig.desc}</p>
-            </div>
-          ))}
+                <div>
+                  <p style={{ fontFamily: "var(--font-body)", fontSize: "0.88rem", color: "var(--text-dark)", lineHeight: 1.6, marginBottom: "0.25rem" }}>
+                    <strong>{r.authors}.</strong> "{r.title}." <em>{r.outlet}</em>, {r.date}.
+                  </p>
+                  <a
+                    href={r.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ fontFamily: "var(--font-body)", fontSize: "0.75rem", color: "var(--gold)", textDecoration: "none", wordBreak: "break-all" }}
+                  >
+                    {r.url}
+                  </a>
+                </div>
+              </li>
+            ))}
+          </ol>
         </div>
       </div>
     </section>
@@ -768,32 +1173,44 @@ function KeyFiguresSection() {
 // ─── Footer ───────────────────────────────────────────────────────────────────
 function Footer() {
   return (
-    <footer className="py-10 text-center" style={{ background: "#060810", borderTop: "1px solid rgba(255,255,255,0.04)" }}>
-      <p style={{ fontFamily: "var(--font-display)", fontSize: "1.1rem", color: "var(--gold)", marginBottom: "6px" }}>
-        Paris 2024 Olympics — A Cultural &amp; Artistic Analysis
-      </p>
-      <p className="text-white/25" style={{ fontFamily: "var(--font-body)", fontSize: "0.75rem", letterSpacing: "0.1em" }}>
-        Research compiled from 7 sources · July–August 2024
-      </p>
+    <footer style={{ background: "var(--navy)", padding: "3rem 0" }}>
+      <div className="container">
+        <div className="tricolor-bar" style={{ marginBottom: "2rem" }} />
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: "1rem" }}>
+          <div>
+            <p style={{ fontFamily: "var(--font-display)", fontSize: "1.3rem", fontWeight: 700, color: "#fff", marginBottom: "0.3rem" }}>
+              Paris 2024 — A Cultural &amp; Artistic Analysis
+            </p>
+            <p style={{ fontFamily: "var(--font-body)", fontSize: "0.75rem", color: "rgba(255,255,255,0.4)", letterSpacing: "0.08em" }}>
+              202601_MDFL_201R_01 · Taste of France · Xinyue Fan
+            </p>
+          </div>
+          <p style={{ fontFamily: "var(--font-body)", fontSize: "0.72rem", color: "rgba(255,255,255,0.3)", letterSpacing: "0.08em" }}>
+            © 2024 Paris Olympic Games · All rights reserved
+          </p>
+        </div>
+      </div>
     </footer>
   );
 }
 
-// ─── Main Home ────────────────────────────────────────────────────────────────
+// ─── Main ─────────────────────────────────────────────────────────────────────
 export default function Home() {
   useScrollReveal();
   return (
-    <div className="min-h-screen" style={{ background: "var(--navy)" }}>
+    <div style={{ fontFamily: "var(--font-body)", background: "#fff" }}>
       <CourseHeader />
       <Nav />
       <Hero />
+      <Stats />
       <OpeningSection />
-      <PullQuote />
-      <KeyFiguresSection />
-      <ActsSection />
+      <ActsTimeline />
+      <PhotoGallery />
       <ClosingSection />
       <MascotSection />
-      <ConclusionSection />
+      <InterviewsSection />
+      <MedalTable />
+      <ControversySection />
       <ReferencesSection />
       <Footer />
     </div>
