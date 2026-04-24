@@ -78,13 +78,78 @@ function ParticleCanvas() {
 }
 
 // ─── Navigation ──────────────────────────────────────────────────────────────
+// --- Course Header Banner ---
+function CourseHeader() {
+  return (
+    <div style={{
+      position: "fixed",
+      top: 0,
+      left: 0,
+      right: 0,
+      zIndex: 100,
+      background: "rgba(10, 14, 26, 0.97)",
+      borderBottom: "1px solid rgba(240, 192, 64, 0.25)",
+      padding: "8px 32px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      backdropFilter: "blur(12px)",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+        <span style={{
+          fontFamily: "var(--font-body)",
+          fontSize: "0.7rem",
+          fontWeight: 600,
+          letterSpacing: "0.18em",
+          textTransform: "uppercase",
+          color: "var(--gold)",
+          opacity: 0.9,
+        }}>
+          202601_MDFL_201R_01
+        </span>
+        <span style={{ width: "1px", height: "14px", background: "rgba(240,192,64,0.3)", display: "inline-block" }} />
+        <span style={{
+          fontFamily: "var(--font-display)",
+          fontSize: "0.9rem",
+          fontWeight: 600,
+          color: "#fff",
+          letterSpacing: "0.04em",
+        }}>
+          Taste of France
+        </span>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        <span style={{
+          fontFamily: "var(--font-body)",
+          fontSize: "0.68rem",
+          fontWeight: 400,
+          color: "rgba(255,255,255,0.45)",
+          letterSpacing: "0.1em",
+          textTransform: "uppercase",
+        }}>
+          Author:
+        </span>
+        <span style={{
+          fontFamily: "var(--font-display)",
+          fontSize: "0.88rem",
+          fontWeight: 600,
+          color: "rgba(255,255,255,0.85)",
+          letterSpacing: "0.04em",
+          fontStyle: "italic",
+        }}>
+          Xinyue Fan
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function Nav() {
   const scrollTo = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
   };
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-8 py-4"
-      style={{ background: "linear-gradient(to bottom, rgba(10,14,26,0.95) 0%, rgba(10,14,26,0) 100%)" }}>
+    <nav className="fixed left-0 right-0 z-50 flex items-center justify-between px-8 py-4" style={{ top: "38px", background: "linear-gradient(to bottom, rgba(10,14,26,0.95) 0%, rgba(10,14,26,0) 100%)" }}>
       <div className="flex items-center gap-2">
         <div className="w-6 h-6 rounded-full border border-[#f0c040] flex items-center justify-center">
           <div className="w-2 h-2 rounded-full bg-[#f0c040]" />
@@ -126,7 +191,7 @@ function Hero() {
         <div className="absolute inset-0" style={{ background: "linear-gradient(to top, #0a0e1a 0%, rgba(10,14,26,0.3) 50%, rgba(10,14,26,0.1) 100%)" }} />
       </div>
       <ParticleCanvas />
-      <div className="relative z-10 container pb-24 pt-40">
+      <div className="relative z-10 container pb-24 pt-48">
         <div className="max-w-3xl">
           <p className="section-label mb-6">July 26 – August 11, 2024</p>
           <h1 className="display-heading mb-6" style={{ fontSize: "clamp(2.8rem, 7vw, 5.5rem)", lineHeight: 1.05 }}>
@@ -708,7 +773,7 @@ function Footer() {
         Paris 2024 Olympics — A Cultural &amp; Artistic Analysis
       </p>
       <p className="text-white/25" style={{ fontFamily: "var(--font-body)", fontSize: "0.75rem", letterSpacing: "0.1em" }}>
-        Research compiled from 7 sources · July–August 2024 · Manus AI
+        Research compiled from 7 sources · July–August 2024
       </p>
     </footer>
   );
@@ -719,6 +784,7 @@ export default function Home() {
   useScrollReveal();
   return (
     <div className="min-h-screen" style={{ background: "var(--navy)" }}>
+      <CourseHeader />
       <Nav />
       <Hero />
       <OpeningSection />
